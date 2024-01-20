@@ -89,9 +89,12 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(num_heads * head_size, n_embd) # num_heads * head_size = n_embd
 
     def forward(self, x):
-        return torch.cat([h(x) for h in self.heads], dim=-1) # (B, T, C)
+        out = torch.cat([h(x) for h in self.heads], dim=-1) # (B, T, C)
+        out = self.proj(out)
+        return out
 
 
 class FeedFoward(nn.Module):
@@ -100,12 +103,27 @@ class FeedFoward(nn.Module):
     def __init__(self, n_embd):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embd, n_embd),
-            nn.ReLU()
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd)
         )
 
     def forward(self, x):
         return self.net(x)
+
+class Block(nn.Module):
+    """ Transformer Block: Communication followed by computation"""
+
+    def __init__(self, n_embd, num_heads):
+        super().__init__()
+        head_size = n_embd // num_heads
+        self.sa_head = MultiHeadAttention(num_heads, head_size)
+        self.ffwd = FeedFoward(n_embd)
+
+    def forward(self, x):
+        x = x + self.sa_head(x)
+        x = x + self.ffwd(x)
+        return x
 
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
@@ -115,8 +133,7 @@ class BigramLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd) # wte
         self.position_embedding_table = nn.Embedding(block_size, n_embd) # wpe
-        self.sa_head = MultiHeadAttention(num_heads=4, head_size=n_embd // 4)
-        self.ffwd = FeedFoward(n_embd)
+        self.blocks = nn.Sequential(*[Block(n_embd, num_heads=4) for _ in range(3)])
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -125,8 +142,7 @@ class BigramLanguageModel(nn.Module):
         tok_emb = self.token_embedding_table(idx) # (B,T,C)
         pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T,C)
         x = tok_emb + pos_emb # (B,T,C)
-        x = self.sa_head(x) # apply one head of self-attention (B,T,C)
-        x = self.ffwd(x) # (B,T,C)
+        x = self.blocks(x) # (B,T,C)
         logits = self.lm_head(x) # (B,T,vocab_size)
 
         if targets is None:
@@ -186,25 +202,29 @@ print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
 # output:
 """
 (GPT) root@interactive78022:~/learnGPT# /opt/data/private/linkdom/miniconda3/envs/GPT/bin/python /root/learnGPT/v2.py
-step 0: train loss 4.1996, val loss 4.1995
-step 500: train loss 2.5993, val loss 2.6077
-step 1000: train loss 2.4629, val loss 2.4651
-step 1500: train loss 2.3974, val loss 2.3951
-step 2000: train loss 2.3297, val loss 2.3470
-step 2500: train loss 2.3018, val loss 2.3221
-step 3000: train loss 2.2828, val loss 2.2936
-step 3500: train loss 2.2495, val loss 2.2721
-step 4000: train loss 2.2435, val loss 2.2468
-step 4500: train loss 2.2285, val loss 2.2409
+step 0: train loss 4.6255, val loss 4.6233
+step 500: train loss 2.3881, val loss 2.3845
+step 1000: train loss 2.2707, val loss 2.2690
+step 1500: train loss 2.1886, val loss 2.2112
+step 2000: train loss 2.1482, val loss 2.1842
+step 2500: train loss 2.1083, val loss 2.1538
+step 3000: train loss 2.0709, val loss 2.1449
+step 3500: train loss 2.0628, val loss 2.1198
+step 4000: train loss 2.0288, val loss 2.1125
+step 4500: train loss 2.0042, val loss 2.1033
 
-And the Ror
-Thow and is and thrad thom of oule.
-Sthr-' my dall ands:
-Warth fou qurord.
-War dilth ane aw crup and not, ut onoth
-Yowns, tof it he cove lend lincath is ees, hain lat Het dulvets, and to poman is wables lill dite ullliser cecrivy prupt aiss hew youn's and knamopetell lownomthy wod moth keacal---A wher eiicks to thour rive cees, meds pood of he thu the hanterth fo so;; igis! my to thy ale ontat af Pried my of.
-WHINY ICHARD:
-Poid:
-Ardsal the Eget to uin cour ay andy Rry to chan the!
-An
+
+KER:
+Dy be will and is by be madisel bube to take Our my calatanss:
+Walt me us crow. that dings anesswice, you,
+Than of oroughtowns, to fir hear this now
+What grive, send, will is therevers, and the now on you musel lind me littiser cour by pruperaiss him you lord.
+I mady as igals, bettluked mother
+To Wichone do piiby, the most and To ghisends poot mish; the daked non,
+Thef son; if him shat thy flengath, af Prike my of.
+
+HKING EDLIV:
+Puise
+Sadaple,
+And he mavein cour as and your to-chan the wil
 """
