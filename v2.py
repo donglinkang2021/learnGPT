@@ -93,6 +93,20 @@ class MultiHeadAttention(nn.Module):
     def forward(self, x):
         return torch.cat([h(x) for h in self.heads], dim=-1) # (B, T, C)
 
+
+class FeedFoward(nn.Module):
+    """ a simple linear layer followed bu a non-linearity """
+
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, n_embd),
+            nn.ReLU()
+        )
+
+    def forward(self, x):
+        return self.net(x)
+
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
 
@@ -102,6 +116,7 @@ class BigramLanguageModel(nn.Module):
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd) # wte
         self.position_embedding_table = nn.Embedding(block_size, n_embd) # wpe
         self.sa_head = MultiHeadAttention(num_heads=4, head_size=n_embd // 4)
+        self.ffwd = FeedFoward(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -111,6 +126,7 @@ class BigramLanguageModel(nn.Module):
         pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T,C)
         x = tok_emb + pos_emb # (B,T,C)
         x = self.sa_head(x) # apply one head of self-attention (B,T,C)
+        x = self.ffwd(x) # (B,T,C)
         logits = self.lm_head(x) # (B,T,vocab_size)
 
         if targets is None:
@@ -170,37 +186,25 @@ print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
 # output:
 """
 (GPT) root@interactive78022:~/learnGPT# /opt/data/private/linkdom/miniconda3/envs/GPT/bin/python /root/learnGPT/v2.py
-step 0: train loss 4.2000, val loss 4.2047
-step 500: train loss 2.6911, val loss 2.7087
-step 1000: train loss 2.5196, val loss 2.5303
-step 1500: train loss 2.4775, val loss 2.4829
-step 2000: train loss 2.4408, val loss 2.4523
-step 2500: train loss 2.4272, val loss 2.4435
-step 3000: train loss 2.4130, val loss 2.4327
-step 3500: train loss 2.3956, val loss 2.4212
-step 4000: train loss 2.4041, val loss 2.3992
-step 4500: train loss 2.3980, val loss 2.4084
+step 0: train loss 4.1996, val loss 4.1995
+step 500: train loss 2.5993, val loss 2.6077
+step 1000: train loss 2.4629, val loss 2.4651
+step 1500: train loss 2.3974, val loss 2.3951
+step 2000: train loss 2.3297, val loss 2.3470
+step 2500: train loss 2.3018, val loss 2.3221
+step 3000: train loss 2.2828, val loss 2.2936
+step 3500: train loss 2.2495, val loss 2.2721
+step 4000: train loss 2.2435, val loss 2.2468
+step 4500: train loss 2.2285, val loss 2.2409
 
-Whent iknt,
-Thowi, ht son, bth
-
-Hiset bobe ale.
-S:
-O-' st dalilanss:
-Want he us he, vet?
-Wedilas ate awice my.
-
-HDET:
-ANGo oug
-Yowhavetof is he ot mil ndill, aes iree sen cie lat Herid ovets, and Win ngarigoerabous lelind peal.
--hule onchiry ptugr aiss hew ye wllinde norod atelaves
-Momy yowod mothake ont-wou whth eiiby we ati dourive wee, ired thoouso er; th
-To kad nteruptef so;
-ARID Wam:
-ENGCI inleront ffaf Pre?
-
-Wh om.
-
-He-
-LIERCKENIGUICar adsal aces ard thinin cour ay aney Iry ts I fr af ve y
+And the Ror
+Thow and is and thrad thom of oule.
+Sthr-' my dall ands:
+Warth fou qurord.
+War dilth ane aw crup and not, ut onoth
+Yowns, tof it he cove lend lincath is ees, hain lat Het dulvets, and to poman is wables lill dite ullliser cecrivy prupt aiss hew youn's and knamopetell lownomthy wod moth keacal---A wher eiicks to thour rive cees, meds pood of he thu the hanterth fo so;; igis! my to thy ale ontat af Pried my of.
+WHINY ICHARD:
+Poid:
+Ardsal the Eget to uin cour ay andy Rry to chan the!
+An
 """
