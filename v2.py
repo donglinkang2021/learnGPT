@@ -82,6 +82,16 @@ class Head(nn.Module):
         v = self.value(x) # (B, T, head_size)
         out = wei @ v # (B, T, T) @ (B, T, head_size) -> (B, T, head_size)
         return out
+    
+class MultiHeadAttention(nn.Module):
+    """ multiple heads of self-attention in parallel """
+
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+
+    def forward(self, x):
+        return torch.cat([h(x) for h in self.heads], dim=-1) # (B, T, C)
 
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
@@ -91,7 +101,7 @@ class BigramLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd) # wte
         self.position_embedding_table = nn.Embedding(block_size, n_embd) # wpe
-        self.sa_head = Head(n_embd)
+        self.sa_head = MultiHeadAttention(num_heads=4, head_size=n_embd // 4)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
