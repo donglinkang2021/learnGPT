@@ -3,14 +3,17 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # hyperparameters
-batch_size = 32 # how many independent sequences will we process in parallel?
-block_size = 8 # what is the maximum context length for predictions?
+batch_size = 64 # how many independent sequences will we process in parallel?
+block_size = 256 # what is the maximum context length for predictions?
 max_iters = 5000
 eval_interval = 500
-learning_rate = 1e-3
+learning_rate = 3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
-n_embd = 32
+n_embd = 384
+n_head = 6
+n_layer = 6
+dropout = 0.2
 # ------------
 
 torch.manual_seed(1337)
@@ -67,6 +70,7 @@ class Head(nn.Module):
         self.query = nn.Linear(n_embd, head_size, bias = False)
         self.value = nn.Linear(n_embd, head_size, bias = False)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         # x is (B, T, C)
@@ -78,6 +82,7 @@ class Head(nn.Module):
         wei = q @ k.transpose(-2, -1) * C**(-0.5) # (B, T, head_size) @ (B, head_size, T) -> (B, T, T)
         wei = wei.masked_fill(self.tril[:T,:T] == 0, float('-inf'))  # (T, T) -> (B, T, T)
         wei = F.softmax(wei, dim=-1) # (B, T, T)
+        wei = self.dropout(wei)
         # perform the weighted aggregation of values
         v = self.value(x) # (B, T, head_size)
         out = wei @ v # (B, T, T) @ (B, T, head_size) -> (B, T, head_size)
@@ -90,10 +95,11 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
         self.proj = nn.Linear(num_heads * head_size, n_embd) # num_heads * head_size = n_embd
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
         out = torch.cat([h(x) for h in self.heads], dim=-1) # (B, T, C)
-        out = self.proj(out)
+        out = self.dropout(self.proj(out)) # (B, T, C)
         return out
 
 
@@ -105,7 +111,8 @@ class FeedFoward(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
-            nn.Linear(4 * n_embd, n_embd)
+            nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
@@ -119,10 +126,12 @@ class Block(nn.Module):
         head_size = n_embd // num_heads
         self.sa_head = MultiHeadAttention(num_heads, head_size)
         self.ffwd = FeedFoward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
 
     def forward(self, x):
-        x = x + self.sa_head(x)
-        x = x + self.ffwd(x)
+        x = x + self.sa_head(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
         return x
 
 # super simple bigram model
@@ -133,7 +142,8 @@ class BigramLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd) # wte
         self.position_embedding_table = nn.Embedding(block_size, n_embd) # wpe
-        self.blocks = nn.Sequential(*[Block(n_embd, num_heads=4) for _ in range(3)])
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head) for _ in range(n_layer)])
+        self.ln_f = nn.LayerNorm(n_embd)
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
@@ -143,6 +153,7 @@ class BigramLanguageModel(nn.Module):
         pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T,C)
         x = tok_emb + pos_emb # (B,T,C)
         x = self.blocks(x) # (B,T,C)
+        x = self.ln_f(x)
         logits = self.lm_head(x) # (B,T,vocab_size)
 
         if targets is None:
@@ -202,29 +213,52 @@ print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
 # output:
 """
 (GPT) root@interactive78022:~/learnGPT# /opt/data/private/linkdom/miniconda3/envs/GPT/bin/python /root/learnGPT/v2.py
-step 0: train loss 4.6255, val loss 4.6233
-step 500: train loss 2.3881, val loss 2.3845
-step 1000: train loss 2.2707, val loss 2.2690
-step 1500: train loss 2.1886, val loss 2.2112
-step 2000: train loss 2.1482, val loss 2.1842
-step 2500: train loss 2.1083, val loss 2.1538
-step 3000: train loss 2.0709, val loss 2.1449
-step 3500: train loss 2.0628, val loss 2.1198
-step 4000: train loss 2.0288, val loss 2.1125
-step 4500: train loss 2.0042, val loss 2.1033
+step 0: train loss 4.2849, val loss 4.2823
+step 500: train loss 2.0005, val loss 2.0872
+step 1000: train loss 1.5952, val loss 1.7717
+step 1500: train loss 1.4378, val loss 1.6373
+step 2000: train loss 1.3408, val loss 1.5718
+step 2500: train loss 1.2787, val loss 1.5323
+step 3000: train loss 1.2268, val loss 1.5078
+step 3500: train loss 1.1830, val loss 1.4894
+step 4000: train loss 1.1454, val loss 1.4883
+step 4500: train loss 1.1099, val loss 1.4837
 
 
-KER:
-Dy be will and is by be madisel bube to take Our my calatanss:
-Walt me us crow. that dings anesswice, you,
-Than of oroughtowns, to fir hear this now
-What grive, send, will is therevers, and the now on you musel lind me littiser cour by pruperaiss him you lord.
-I mady as igals, bettluked mother
-To Wichone do piiby, the most and To ghisends poot mish; the daked non,
-Thef son; if him shat thy flengath, af Prike my of.
+SLY:
+Sir.
 
-HKING EDLIV:
-Puise
-Sadaple,
-And he mavein cour as and your to-chan the wil
+KING RICHARD III:
+He so.
+
+BUSHY:
+Meantimes, well met! what Warwick true?
+
+GREMIO:
+Peternoxy too,--
+Why, didst thou do well not do, it?
+
+SAMPSON:
+Your fries.
+What comes hither?
+
+CLARENCE:
+Why?
+
+SAMPSON:
+Hald you Dory, sister.
+
+DUKE VINCENTIO:
+Do there?
+
+CATESBY:
+Yet your life strong upon me not graves it,
+Withal you out: for my father, where it were too?
+
+Messenger:
+O right we do feel away.
+
+QUEEN:
+Could your brrookens of yours, whose sacred are
+Or chief, else my arms, I therewixt you
 """
