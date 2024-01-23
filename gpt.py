@@ -103,34 +103,36 @@ print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
 """
 (GPT) root@hubert:~/learnGPT# /opt/data/private/linkdom/miniconda3/envs/GPT/bin/python /root/learnGPT/gpt.py
 10.793537 M parameters
-step 0: train loss 4.2217, val loss 4.2303
-step 500: train loss 1.7179, val loss 1.8696
-step 1000: train loss 1.3962, val loss 1.6063
-step 1500: train loss 1.2705, val loss 1.5268
-step 2000: train loss 1.1878, val loss 1.4992
-step 2500: train loss 1.1241, val loss 1.4877
-step 3000: train loss 1.0739, val loss 1.4797
-step 3500: train loss 1.0198, val loss 1.4964
-step 4000: train loss 0.9642, val loss 1.5100
-step 4500: train loss 0.9140, val loss 1.5396
-step 4999: train loss 0.8609, val loss 1.5645
+step 0: train loss 4.2221, val loss 4.2277
+step 500: train loss 2.0665, val loss 2.1390
+step 1000: train loss 1.5668, val loss 1.7482
+step 1500: train loss 1.3751, val loss 1.5865
+step 2000: train loss 1.2840, val loss 1.5371
+step 2500: train loss 1.2215, val loss 1.5089
+step 3000: train loss 1.1782, val loss 1.4746
+step 3500: train loss 1.1385, val loss 1.4812
+step 4000: train loss 1.0971, val loss 1.4645
+step 4500: train loss 1.0621, val loss 1.4785
+step 4999: train loss 1.0282, val loss 1.4751
 
-turness plopy a business bunder from the debt
-extended with the authose gnaws blown and high profess:
-what is the hunkry his face, he caused
-within this was a prized son, and the philosophy banished, he
-should.
 
-BARCHISMUS:
+Shepherd:
+You have stoop upon to death; and that fear with the
+dukes?
+What then?
 
-MENENIUS:
-Menenieven the poor Milgiar abetter for the
-person, I thought the that departing hanging thee: this
-compassionable Montague to prove!
+ELBOW:
+Pray, became him, and I had as his faction out would
+believed with my budgessies as I call them
+that in your gainst my thanks which we
+should pose you even you. Could as Minocertain be; know
+when it thou must needs advanture, as it as
+you would be guiled, at whole spear.
 
-Sehephecy Citizen:
-Madam, gin witnior that thus he crowns. But to-morrrow,
-where accuse is it, and trusty mad, Juliet. Ladd!
+ARCHIDAMUS:
+As you remember was while here lies for me.
 
-LUCE
+CAMILLO:
+Why, I am in your hearts who is't; and I, as that are
+to pass your love
 """
