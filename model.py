@@ -131,7 +131,6 @@ class CausalSelfAttention(nn.Module):
         # output projection
         self.c_proj = nn.Linear(n_embd, n_embd)
         # regularization
-        self.attn_dropout = nn.Dropout(dropout)
         self.resid_dropout = nn.Dropout(dropout)
 
     def forward(self, x):
