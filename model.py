@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from einops import rearrange
+import math
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -39,6 +41,7 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(self, n_embd, n_head, head_size, block_size, dropout):
         super().__init__()
+        assert n_embd % n_head == 0
         self.heads = nn.ModuleList([Head(n_embd, head_size, block_size, dropout) for _ in range(n_head)])
         self.proj = nn.Linear(head_size * n_head, n_embd)
         self.dropout = nn.Dropout(dropout)
@@ -47,6 +50,75 @@ class MultiHeadAttention(nn.Module):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.dropout(self.proj(out))
         return out
+
+"""CausalSelfAttention
+(GPT) root@hubert:~/learnGPT# python gpt.py 
+10.788929 M parameters
+step 0: train loss 4.2986, val loss 4.3043
+step 500: train loss 1.7351, val loss 1.8955
+step 1000: train loss 1.4069, val loss 1.6077
+step 1500: train loss 1.2777, val loss 1.5239
+step 2000: train loss 1.1992, val loss 1.4969
+step 2500: train loss 1.1289, val loss 1.4818
+step 3000: train loss 1.0808, val loss 1.4724
+step 3500: train loss 1.0255, val loss 1.4882
+step 4000: train loss 0.9696, val loss 1.5015
+step 4500: train loss 0.9211, val loss 1.5227
+step 4999: train loss 0.8676, val loss 1.5455
+
+Not so deligrees:
+I escend thee a little prince's heir,
+That obey stricts with that light in thy bounts;
+And thou'rge thys window shuns now but how to declectionRes
+Only drugs husbagger, such art as merrifice;
+Engageous of their frails expellenter. Stanley, be trangor
+Of motion: death you ne'er requested to a
+poor? If trust any trul, I am suborn
+that can call I am irt, fill'd with spidow
+To shortly in Exeterssio; and worse thou art content to the
+blay roar. To think is thou roar, and I
+Wilt thou
+"""  
+class CausalSelfAttention(nn.Module):
+    """mix the head and the multi-head attention together"""
+
+    def __init__(self, n_embd, n_head, head_size, block_size, dropout):
+        super().__init__()
+        assert n_embd % n_head == 0
+        self.n_embd = n_embd
+        self.n_head = n_head
+        self.dropout = dropout
+        # key, query, value projections for all heads, but in a batch
+        self.c_attn = nn.Linear(n_embd, 3 * n_embd, bias=False)
+        # output projection
+        self.c_proj = nn.Linear(n_embd, n_embd)
+        # regularization
+        self.attn_dropout = nn.Dropout(dropout)
+        self.resid_dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        B, T, C = x.shape
+        # project the queries, keys and values
+        q, k, v = self.c_attn(x).split(C, dim=2)
+        k = rearrange(k, 'B T (nh hs) -> B nh T hs', nh=self.n_head)
+        q = rearrange(q, 'B T (nh hs) -> B nh T hs', nh=self.n_head)
+        v = rearrange(v, 'B T (nh hs) -> B nh T hs', nh=self.n_head)
+
+        # casual self-attention: ignore "future" keys during attention
+        # masked attention
+        # Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        # efficient attention using Flash Attention CUDA kernels
+        y = torch.nn.functional.scaled_dot_product_attention(
+            q, k, v, attn_mask=None, 
+            dropout_p=self.dropout if self.training else 0,
+            is_causal=True
+        )
+        
+        # re-assemble all head outputs side by side
+        y = rearrange(y, 'B nh T hs -> B T (nh hs)')
+        # output projection
+        y = self.resid_dropout(self.c_proj(y))
+        return y
     
 class FeedFoward(nn.Module):
     """ a simple linear layer followed by a non-linearity """
@@ -70,13 +142,14 @@ class Block(nn.Module):
         # n_embd: embedding dimension, n_head: the number of heads we'd like
         super().__init__()
         head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_embd, n_head, head_size, block_size, dropout)
+        # self.attn = MultiHeadAttention(n_embd, n_head, head_size, block_size, dropout)
+        self.attn = CausalSelfAttention(n_embd, n_head, head_size, block_size, dropout)
         self.ffwd = FeedFoward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
     def forward(self, x):
-        x = x + self.sa(self.ln1(x))
+        x = x + self.attn(self.ln1(x))
         x = x + self.ffwd(self.ln2(x))
         return x
     
