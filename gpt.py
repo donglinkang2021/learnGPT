@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from model import GPTLanguageModel
+from model import GPT
 
 # hyperparameters
 batch_size = 64 # how many independent sequences will we process in parallel?
@@ -62,7 +62,7 @@ def estimate_loss():
     model.train()
     return out
 
-model = GPTLanguageModel(
+model = GPT(
     vocab_size=vocab_size,
     n_embd=n_embd,
     n_head=n_head,
@@ -71,8 +71,6 @@ model = GPTLanguageModel(
     dropout=dropout
 )
 m = model.to(device)
-# print the number of parameters in the model
-print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
 
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
