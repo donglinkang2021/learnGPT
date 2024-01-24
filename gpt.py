@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from model import GPT
 
-# hyperparameters
+# train hyperparameters
 batch_size = 64 # how many independent sequences will we process in parallel?
 block_size = 256 # what is the maximum context length for predictions?
 max_iters = 5000
@@ -15,6 +15,12 @@ n_embd = 384
 n_head = 6
 n_layer = 6
 dropout = 0.2
+
+# sample hyperparameters
+max_new_tokens = 500 # max number of tokens to generate
+temperature = 0.8 # > 1.0 = more exploratory, < 1.0 = more conservative
+top_k = 200 # consider only the top_k most likely tokens, clamp others to have 0 probability
+
 # ------------
 
 torch.manual_seed(1337)
@@ -93,7 +99,12 @@ for iter in range(max_iters):
 
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
+print(decode(m.generate(
+    context, 
+    max_new_tokens, 
+    temperature, 
+    top_k
+)[0].tolist()))
 # open('more.txt', 'w').write(decode(m.generate(context, max_new_tokens=10000)[0].tolist()))
 
 

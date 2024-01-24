@@ -4,6 +4,44 @@ from torch.nn import functional as F
 from einops import rearrange
 import math
 
+"""Head and MultiHeadAttention
+(GPT) root@hubert:~/learnGPT# python gpt.py
+number of parameters: 10.695233 M 
+step 0: train loss 4.2816, val loss 4.2797
+step 500: train loss 2.2424, val loss 2.2919
+step 1000: train loss 1.7171, val loss 1.8712
+step 1500: train loss 1.4769, val loss 1.6802
+step 2000: train loss 1.3631, val loss 1.5875
+step 2500: train loss 1.2899, val loss 1.5414
+step 3000: train loss 1.2358, val loss 1.5219
+step 3500: train loss 1.1898, val loss 1.4985
+step 4000: train loss 1.1497, val loss 1.4909
+step 4500: train loss 1.1083, val loss 1.4952
+step 4999: train loss 1.0741, val loss 1.4999
+
+LORD WILLOUGHBY:
+This infering may do assist me and yet have
+But in some officion shine of wail;
+That oft that is Edward parting souls
+But let out my wind in negrousies mine own.
+
+PRINCE EDWARD:
+What were he had thou talk of hat?
+
+NORFOLK:
+Now, with us too right.
+
+TYBALT:
+Yes, my lord, fair Richard liek, he was there?
+
+EXETRENBY:
+My nobld mother his life importal towards to them?
+
+TRGETH:
+Consent the way of course, the sweet longer
+Which fast our tongue in of falsehip stuff's foretting
+May be go
+"""
 class Head(nn.Module):
     """ one head of self-attention """
 
@@ -66,26 +104,18 @@ step 4999: train loss 0.8086, val loss 1.5860
 
 KING RICHARD III:
 
-CHATESS:
-Once more, my father life.
-
-KING EDWARD IV:
-Why for son, I fear, we are conform'd with home.
-
-DUCHESS OF YORK:
-Be it sentle, my ghastory I bear thee
-As damned little of thy wife,--
-
-QUEEN ELIZABETH:
-O footman:
-These may I mount from the enemy issue;
-So from them bitter pantime this was by their
-You hast begun; that he swears note me to--
-At agreeing strange enbrach of your malive,
-And believe Piertneys' fair steps of heaven
-And shall marry your lord as me dreadly.
-
-KI
+CHARD III:
+Say grieve this, I still have the depite,
+When Tybalt's creaturelect is present,
+That our ment weep'd by his spoil sentence on them;
+And swell I seet upon the traitor's news.
+The return tender that efford our comfort
+That the feedful cedensity of the freezets
+And fine the false world of adversaries,
+The bloody lord proroud generall in the foot:
+Let the flowers of many blood words drink, burns
+Small insterior and the story caitors,
+And then from the sweet boy wand to
 """  
 class CausalSelfAttention(nn.Module):
     """mix the head and the multi-head attention together"""
