@@ -156,6 +156,73 @@ class CausalSelfAttention(nn.Module):
         # output projection
         y = self.resid_dropout(self.c_proj(y))
         return y
+
+"""LightSelfAttention
+(GPT) root@test:~/learnGPT# python gpt.py 
+number of parameters: 8.921153 M 
+step 0: train loss 4.1972, val loss 4.2025
+step 500: train loss 2.3911, val loss 2.4197
+step 1000: train loss 2.1185, val loss 2.1927
+step 1500: train loss 1.7931, val loss 1.9464
+step 2000: train loss 1.6002, val loss 1.7993
+step 2500: train loss 1.4905, val loss 1.7018
+step 3000: train loss 1.4201, val loss 1.6417
+step 3500: train loss 1.3726, val loss 1.6048
+step 4000: train loss 1.3272, val loss 1.5775
+step 4500: train loss 1.2944, val loss 1.5656
+step 4999: train loss 1.2622, val loss 1.5461
+
+KING RICHARD III:
+Lost you good shall to tell that keep.
+
+KING EDWARD IV:
+Here, sir, I fear lord, because me her miself?
+
+ANGELO:
+Hary, chast shall not be so to our consel,
+Have had pain the heaven of wallow our gates,
+To dispose morotal great make and of fear
+That hell their hath dreather's hath ling
+The life like inder'd in his houses;
+And when we hounoura--Of it banished.
+
+CATESBY:
+Be party to descrative, when he been say word,
+For him, rescute sovereis, the mark of under,
+Than thou diestr to
+"""    
+class LightSelfAttention(nn.Module):
+    def __init__(self, n_embd, n_head, head_size, block_size, dropout):
+        super().__init__()
+        assert n_embd % n_head == 0
+        self.n_embd = n_embd
+        self.n_head = n_head
+        self.dropout = dropout
+        # key, query, value projections for all heads, but in a batch
+        self.c_attn = nn.Linear(n_embd, n_embd, bias=False)
+        # output projection
+        self.c_proj = nn.Linear(n_embd, n_embd)
+        # regularization
+        self.resid_dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.c_attn(x)
+        x = rearrange(x, 'B T (nh hs) -> B nh T hs', nh=self.n_head)
+        # casual self-attention: ignore "future" keys during attention
+        # masked attention
+        # Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
+        # efficient attention using Flash Attention CUDA kernels
+        y = torch.nn.functional.scaled_dot_product_attention(
+            x, x, x, attn_mask=None, 
+            dropout_p=self.dropout if self.training else 0,
+            is_causal=True
+        )
+        
+        # re-assemble all head outputs side by side
+        y = rearrange(y, 'B nh T hs -> B T (nh hs)')
+        # output projection
+        y = self.resid_dropout(self.c_proj(y))
+        return y
     
 class MLP(nn.Module):
     def __init__(self, n_embd, dropout, bias=True):
@@ -180,7 +247,8 @@ class Block(nn.Module):
         super().__init__()
         head_size = n_embd // n_head
         # self.attn = MultiHeadAttention(n_embd, n_head, head_size, block_size, dropout)
-        self.attn = CausalSelfAttention(n_embd, n_head, head_size, block_size, dropout)
+        # self.attn = CausalSelfAttention(n_embd, n_head, head_size, block_size, dropout)
+        self.attn = LightSelfAttention(n_embd, n_head, head_size, block_size, dropout)
         self.mlp = MLP(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
