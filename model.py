@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from einops import rearrange
 import math
 
-"""Head and MultiHeadAttention
+"""Head and MultiHeadAttention+MLP
 (GPT) root@hubert:~/learnGPT# python gpt.py
 number of parameters: 10.695233 M 
 step 0: train loss 4.2816, val loss 4.2797
@@ -87,7 +87,7 @@ class MultiHeadAttention(nn.Module):
         out = self.dropout(self.proj(out))
         return out
 
-"""CausalSelfAttention
+"""CausalSelfAttention+MLP
 (GPT) root@hubert:~/learnGPT# python gpt.py
 number of parameters: 10.690625 M 
 step 0: train loss 4.2152, val loss 4.2165
@@ -157,7 +157,7 @@ class CausalSelfAttention(nn.Module):
         y = self.resid_dropout(self.c_proj(y))
         return y
 
-"""LightSelfAttention
+"""LightSelfAttention+MLP
 (GPT) root@test:~/learnGPT# python gpt.py 
 number of parameters: 8.921153 M 
 step 0: train loss 4.1972, val loss 4.2025
@@ -238,6 +238,24 @@ class MLP(nn.Module):
         x = self.c_proj(x)
         x = self.dropout(x)
         return x
+
+"""not good"""    
+class Heads(nn.Module):
+    def __init__(self, n_embd, dropout, bias=True):
+        super().__init__()
+        self.n_head  = 4
+        self.c_fc    = nn.Linear(n_embd, 4 * n_embd, bias=bias)
+        self.c_proj  = nn.Linear(4 * n_embd, n_embd, bias=bias)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.c_fc(x)
+        x = rearrange(x, 'B T (nh hs) -> B T nh hs', nh=self.n_head)
+        x = F.scaled_dot_product_attention(x, x, x)
+        x = rearrange(x, 'B T nh hs -> B T (nh hs)')
+        x = self.c_proj(x)
+        x = self.dropout(x)
+        return x
     
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
@@ -247,9 +265,10 @@ class Block(nn.Module):
         super().__init__()
         head_size = n_embd // n_head
         # self.attn = MultiHeadAttention(n_embd, n_head, head_size, block_size, dropout)
-        # self.attn = CausalSelfAttention(n_embd, n_head, head_size, block_size, dropout)
-        self.attn = LightSelfAttention(n_embd, n_head, head_size, block_size, dropout)
+        self.attn = CausalSelfAttention(n_embd, n_head, head_size, block_size, dropout)
+        # self.attn = LightSelfAttention(n_embd, n_head, head_size, block_size, dropout)
         self.mlp = MLP(n_embd, dropout)
+        # self.mlp = Heads(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
 
