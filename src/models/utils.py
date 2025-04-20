@@ -5,12 +5,15 @@ import torch.nn.functional as F
 def generate(
         model:nn.Module, 
         idx:torch.Tensor,
-        max_new_tokens:int
+        max_new_tokens:int, 
+        block_size:int = None
     ) -> torch.Tensor:
     # idx is (B, T) array of indices in the current context
     for _ in range(max_new_tokens):
+        # crop idx to the last block_size tokens
+        idx_cond = idx[:, -block_size:] if block_size else idx
         # get the predictions
-        logits, loss = model(idx)
+        logits, loss = model(idx_cond)
         # focus only on the last time step
         logits = logits[:, -1, :] # becomes (B, C)
         # apply softmax to get probabilities

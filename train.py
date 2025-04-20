@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from src.config import *
+# from config.bigram import *
+from config.gpt import *
 from src.data import get_tokenizer, get_data
 from torch.utils.tensorboard import SummaryWriter # Add this import
 import datetime # Add this import
@@ -42,25 +43,29 @@ def estimate_loss():
     model.train()
     return out
 
-from src.models.bigram import BigramLanguageModel
 from src.models.utils import generate
+# from src.models.bigram import BigramLanguageModel
+# model = BigramLanguageModel(vocab_size)
+from src.models.gpt import GPTLanguageModel
+model = GPTLanguageModel(vocab_size, n_embd, block_size, n_layer, n_head, dropout)
 
-model = BigramLanguageModel(vocab_size)
 m = model.to(device)
+print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
 
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
 # Get current timestamp for log directory
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-log_dir = f'logs/bigram/{timestamp}'
+# log_dir = f'logs/bigram/{timestamp}'
+log_dir = f'logs/gpt/{timestamp}'
 writer = SummaryWriter(log_dir) # Initialize writer with timestamped directory
 
 # Wrap range(max_iters) with tqdm
 for iter in tqdm(range(max_iters), desc="Training"):
 
     # every once in a while evaluate the loss on train and val sets
-    if iter % eval_interval == 0:
+    if iter % eval_interval == 0 or iter == max_iters - 1:
         losses = estimate_loss()
         # Use tqdm.write instead of print to avoid interfering with the progress bar
         tqdm.write(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
@@ -80,7 +85,7 @@ for iter in tqdm(range(max_iters), desc="Training"):
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 # Use tqdm.write here as well if you want to keep output consistent
-tqdm.write(decode(generate(model, context, max_new_tokens=500)[0].tolist()))
+tqdm.write(decode(generate(model, context, max_new_tokens=500, block_size=block_size)[0].tolist()))
 
 writer.close() # Close the writer
 # tensorboard --logdir logs --bind_all
