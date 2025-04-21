@@ -13,4 +13,20 @@
 
 - [x] 先把bigram模型和gpt模型自己写出来
 - [x] 用tensorboard可视化各个指标结果
-- [ ] 后续工作可以用hydra配置一下参数更好训练一点
+
+------
+
+20250421 update
+
+- [x] 后续工作可以用hydra配置一下参数更好训练一点
+
+```bash
+conda activate linkdom
+export CUDA_VISIBLE_DEVICES=0
+bash scripts/train_bigram.sh
+conda activate linkdom
+export CUDA_VISIBLE_DEVICES=1
+bash scripts/train_gpt.sh
+```
+
+跑起两组实验了，第二组占4036MB，第一组模型太小甚至都没有显示占用显存。
