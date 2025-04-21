@@ -1,0 +1,3 @@
+# filepath: config/data/default.yaml
+path: data/input.txt
+train_split: 0.9

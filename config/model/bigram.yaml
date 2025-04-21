@@ -1,0 +1,3 @@
+# filepath: config/model/bigram.yaml
+_target_: src.models.BigramLanguageModel
+vocab_size: ???

@@ -1,0 +1,3 @@
+save_dir: ./logs
+name: ${model._target_}
+version: ${now:%Y-%m-%d-%H-%M-%S}
