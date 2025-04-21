@@ -2,43 +2,36 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['GPTLanguageModel']
+__all__ = ['GPTLanguageModel_v2']
 
 class Head(nn.Module):
     """ one head of self-attention """
 
-    def __init__(self, n_embd, head_size, block_size, dropout):
+    def __init__(self, n_embd, head_size, dropout):
         super().__init__()
-        self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.query = nn.Linear(n_embd, head_size, bias=False)
-        self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
-
-        self.dropout = nn.Dropout(dropout)
+        self.qkv = nn.Linear(n_embd, 3 * head_size, bias=False)
+        self.head_size = head_size
+        self.dropout = dropout
 
     def forward(self, x):
         # input of size (batch, time-step, channels)
         # output of size (batch, time-step, head size)
-        B,T,C = x.shape
-        k = self.key(x)   # (B,T,hs)
-        q = self.query(x) # (B,T,hs)
-        # compute attention scores ("affinities")
-        wei = q @ k.transpose(-2,-1) * k.shape[-1]**-0.5 # (B, T, hs) @ (B, hs, T) -> (B, T, T)
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
-        wei = F.softmax(wei, dim=-1) # (B, T, T)
-        wei = self.dropout(wei)
-        # perform the weighted aggregation of the values
-        v = self.value(x) # (B,T,hs)
-        out = wei @ v # (B, T, T) @ (B, T, hs) -> (B, T, hs)
+        qkv = self.qkv(x)
+        q, k, v = qkv.split(self.head_size, dim=-1)
+        out = F.scaled_dot_product_attention(
+            query=q, key=k, value=v,
+            is_causal=True,
+            dropout_p=self.dropout
+        )
         return out
 
 class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
-    def __init__(self, num_heads, n_embd, head_size, block_size, dropout):
+    def __init__(self, n_head, n_embd, head_size, dropout):
         super().__init__()
-        self.heads = nn.ModuleList([Head(n_embd, head_size, block_size, dropout) for _ in range(num_heads)])
-        self.proj = nn.Linear(head_size * num_heads, n_embd)
+        self.heads = nn.ModuleList([Head(n_embd, head_size, dropout) for _ in range(n_head)])
+        self.proj = nn.Linear(head_size * n_head, n_embd)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
@@ -64,11 +57,11 @@ class FeedFoward(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, n_embd, n_head, block_size, dropout):
+    def __init__(self, n_embd, n_head, dropout):
         # n_embd: embedding dimension, n_head: the number of heads we'd like
         super().__init__()
         head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_head, n_embd, head_size, block_size, dropout)
+        self.sa = MultiHeadAttention(n_head, n_embd, head_size, dropout)
         self.ffwd = FeedFoward(n_embd, dropout)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
@@ -78,14 +71,14 @@ class Block(nn.Module):
         x = x + self.ffwd(self.ln2(x))
         return x
 
-class GPTLanguageModel(nn.Module):
+class GPTLanguageModel_v2(nn.Module):
 
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, dropout):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head, block_size, dropout) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head, dropout) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embd) # final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
