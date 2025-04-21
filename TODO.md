@@ -23,10 +23,27 @@
 ```bash
 conda activate linkdom
 export CUDA_VISIBLE_DEVICES=0
-bash scripts/train_bigram.sh
+bash scripts/train_bigram.sh # cost 54s
 conda activate linkdom
 export CUDA_VISIBLE_DEVICES=1
-bash scripts/train_gpt.sh
+bash scripts/train_gpt.sh # cost 15:01
+bash scripts/train_gpt_v2.sh # cost 12:48 faster
 ```
 
 跑起两组实验了，第二组占4036MB，第一组模型太小甚至都没有显示占用显存。
+
+在原来的基础上把attention mask版本去掉换成了等效的 `scaled_dot_product_attention` 训练一版，估计会快一点;
+
+打算把之前在[simple sequence prediction](https://github.com/donglinkang2021/simple-sequence-prediction)做过的事情重新训一下，包括positional encoding, quantize部分的思考都思考一下；考虑把 makemore 部分几个模型也加进来做一下对比实验；
+
+- [ ] bow
+- [ ] mlp
+- [ ] rnn
+- [ ] gru
+- [ ] lstm
+- [ ] gpt + sinpe
+- [ ] gpt + rope
+
+后续想法
+
+- [ ] mlp -> quantize
