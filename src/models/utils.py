@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from .simplepe import *
+
+__all__ = ['generate', 'get_pe']
 
 def generate(
         model:nn.Module, 
@@ -23,3 +26,13 @@ def generate(
         # append sampled index to the running sequence
         idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
     return idx
+
+
+def get_pe(pe_type:str, d_model:int, block_size:int):
+    if pe_type == 'randn':
+        return RandomNormalPositionalEncoding(d_model, max_len=block_size)
+    elif pe_type == 'sinpe':
+        return SinusoidalPositionalEncoding(d_model, max_len=block_size)
+    elif pe_type == 'rope':
+        return RotaryPositionalEncoding(d_model, max_len=block_size)
+    return None
