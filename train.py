@@ -89,6 +89,7 @@ def main(cfg: DictConfig) -> None:
         loss.backward()
         optimizer.step()
 
+    losses = estimate_loss(cfg, model, train_data, val_data)
     metrics = {
         'Final/train_loss': losses['train'],
         'Final/val_loss': losses['val'],
