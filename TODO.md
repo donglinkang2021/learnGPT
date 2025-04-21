@@ -34,8 +34,10 @@ bash scripts/train_gpt_v2.sh # cost 12:48 faster
 
 在原来的基础上把attention mask版本去掉换成了等效的 `scaled_dot_product_attention` 训练一版，估计会快一点;
 
-打算把之前在[simple sequence prediction](https://github.com/donglinkang2021/simple-sequence-prediction)做过的事情重新训一下，包括positional encoding, quantize部分的思考都思考一下；考虑把 makemore 部分几个模型也加进来做一下对比实验；
+打算把之前在[simple sequence prediction](https://github.com/donglinkang2021/simple-sequence-prediction)做过的事情重新训一下，包括positional encoding, quantize部分的思考都思考一下；考虑把 [makemore](https://github.com/donglinkang2021/makemore) 部分几个模型也加进来做一下对比实验；
 
+- [x] bigram + matrix factorization 效果基本没有变化，反而因为多了参数时间变长了变成了58s，现在的想法是看可不可以加入最简单的attention看一下有没有效果
+- [x] bigram + pe 看看有没有效果，引入了一些简单的注意力机制，但没有分头也没有多层，不确定会不会有效果，先训练再看看
 - [ ] bow
 - [ ] mlp
 - [ ] rnn
