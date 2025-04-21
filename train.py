@@ -1,91 +1,125 @@
+# filepath: train.py
 import torch
-import torch.nn as nn
-from torch.nn import functional as F
-# from config.bigram import *
-from config.gpt import *
 from src.data import get_tokenizer, get_data
-from torch.utils.tensorboard import SummaryWriter # Add this import
-import datetime # Add this import
-from tqdm import tqdm # Add this import
+from src.models.utils import generate
+from src.utils import omegaconf2tb
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
+import hydra # Add hydra import
+from omegaconf import DictConfig, OmegaConf # Add omegaconf imports
 
-torch.manual_seed(torch_seed)
-
-text = get_data()
-vocab_size, encode, decode = get_tokenizer(text)
-
-# Train and test splits
-data = torch.tensor(encode(text), dtype=torch.long)
-n = int(0.9*len(data)) # first 90% will be train, rest val
-train_data = data[:n]
-val_data = data[n:]
-
-# data loading
-def get_batch(split):
+# data loading (adjust to use cfg)
+def get_batch(split, cfg: DictConfig, train_data, val_data):
     # generate a small batch of data of inputs x and targets y
     data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([data[i:i+block_size] for i in ix])
-    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
-    x, y = x.to(device), y.to(device)
+    # Use config values
+    ix = torch.randint(len(data) - cfg.training.block_size, (cfg.training.batch_size,))
+    x = torch.stack([data[i:i+cfg.training.block_size] for i in ix])
+    y = torch.stack([data[i+1:i+cfg.training.block_size+1] for i in ix])
+    x, y = x.to(cfg.training.device), y.to(cfg.training.device)
     return x, y
 
+# estimate loss (adjust to use cfg)
 @torch.no_grad()
-def estimate_loss():
+def estimate_loss(cfg: DictConfig, model, train_data, val_data):
     out = {}
     model.eval()
     for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
+        losses = torch.zeros(cfg.training.eval_iters)
+        for k in range(cfg.training.eval_iters):
+            # Pass cfg to get_batch
+            X, Y = get_batch(split, cfg, train_data, val_data)
             logits, loss = model(X, Y)
             losses[k] = loss.item()
         out[split] = losses.mean()
     model.train()
     return out
 
-from src.models.utils import generate
-# from src.models.bigram import BigramLanguageModel
-# model = BigramLanguageModel(vocab_size)
-from src.models.gpt import GPTLanguageModel
-model = GPTLanguageModel(vocab_size, n_embd, block_size, n_layer, n_head, dropout)
+# Use hydra decorator for the main function
+@hydra.main(config_path="config", config_name="config", version_base=None)
+def main(cfg: DictConfig) -> None:
+    print("Configuration:\n", OmegaConf.to_yaml(cfg)) # Print the resolved config
+    torch.manual_seed(cfg.training.torch_seed)
 
-m = model.to(device)
-print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
+    # --- Data Loading ---
+    # Use cfg.data.path
+    text = get_data(cfg.data.path)
+    vocab_size, encode, decode = get_tokenizer(text)
 
-# create a PyTorch optimizer
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    data = torch.tensor(encode(text), dtype=torch.long)
+    n = int(cfg.data.train_split * len(data))
+    train_data = data[:n]
+    val_data = data[n:]
 
-# Get current timestamp for log directory
-timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-# log_dir = f'logs/bigram/{timestamp}'
-log_dir = f'logs/gpt/{timestamp}'
-writer = SummaryWriter(log_dir) # Initialize writer with timestamped directory
+    # --- Model Initialization ---
+    # Pass vocab_size and config values to the model
+    model = hydra.utils.instantiate(cfg.model, vocab_size=vocab_size)
+    m = model.to(cfg.training.device)
+    print(f"{sum(p.numel() for p in m.parameters())/1e6:.6f} M parameters")
 
-# Wrap range(max_iters) with tqdm
-for iter in tqdm(range(max_iters), desc="Training"):
+    # --- Optimizer ---
+    # Use cfg.training.learning_rate
+    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.training.learning_rate)
 
-    # every once in a while evaluate the loss on train and val sets
-    if iter % eval_interval == 0 or iter == max_iters - 1:
-        losses = estimate_loss()
-        # Use tqdm.write instead of print to avoid interfering with the progress bar
-        tqdm.write(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        # Log losses to TensorBoard
-        writer.add_scalar('Loss/train', losses['train'], iter)
-        writer.add_scalar('Loss/val', losses['val'], iter)
+    # --- Logging ---
+    # Hydra automatically changes the working directory. Use hydra.runtime.output_dir
+    log_dir = "{}/{}/{}".format(
+        cfg.logger.save_dir,
+        cfg.logger.name,
+        cfg.logger.version
+    )   
+    print(f"TensorBoard log directory: {log_dir}")
+    writer = SummaryWriter(log_dir=log_dir)
 
-    # sample a batch of data
-    xb, yb = get_batch('train')
+    # --- Training Loop ---
+    # Use cfg.training values
+    for iter in tqdm(range(cfg.training.max_iters), desc="Training", dynamic_ncols=True):
+        if iter % cfg.training.eval_interval == 0 or iter == cfg.training.max_iters - 1:
+            # Pass cfg, model, data to estimate_loss
+            losses = estimate_loss(cfg, model, train_data, val_data)
+            tqdm.write(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+            writer.add_scalar('Loss/train', losses['train'], iter)
+            writer.add_scalar('Loss/val', losses['val'], iter)
 
-    # evaluate the loss
-    logits, loss = model(xb, yb)
-    optimizer.zero_grad(set_to_none=True)
-    loss.backward()
-    optimizer.step()
+        # Pass cfg to get_batch
+        xb, yb = get_batch('train', cfg, train_data, val_data)
 
-# generate from the model
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
-# Use tqdm.write here as well if you want to keep output consistent
-tqdm.write(decode(generate(model, context, max_new_tokens=500, block_size=block_size)[0].tolist()))
+        logits, loss = model(xb, yb)
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        optimizer.step()
 
-writer.close() # Close the writer
-# tensorboard --logdir logs --bind_all
+    metrics = {
+        'Final/train_loss': losses['train'],
+        'Final/val_loss': losses['val'],
+    }
+
+    # --- Generation ---
+    context = torch.zeros((1, 1), dtype=torch.long, device=cfg.training.device)
+    # Pass model config block_size
+    generated_output = decode(generate(model, context, max_new_tokens=1000, block_size=cfg.training.block_size)[0].tolist())
+    tqdm.write("\n--- Generated Text ---")
+    tqdm.write(generated_output)
+    # Optionally save generated text to a file in the output directory
+    with open(f"{log_dir}/generated_output.txt", "w") as f:
+        f.write(generated_output)
+    
+    # log hyperparameters to TensorBoard
+    writer.add_hparams(
+        hparam_dict = omegaconf2tb(cfg),
+        metric_dict = metrics,
+    )
+
+    writer.close()
+    print(f"Training complete. Logs and outputs in: {log_dir}")
+
+    # Save the model
+    # torch.save(model.state_dict(), f"{log_dir}/model.pth")
+    # Save the config
+    OmegaConf.save(cfg, f'{log_dir}/config.yaml')
+
+# Entry point for the script
+if __name__ == "__main__":
+    main()
+
+# To run tensorboard: tensorboard --logdir logs --bind_all
