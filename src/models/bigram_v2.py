@@ -10,22 +10,17 @@ class BigramLanguageModel_v2(nn.Module):
     def __init__(self, vocab_size, n_embd, block_size, pe_type='randn'):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
-        self.fc_qkv = nn.Linear(n_embd, n_embd * 3)
-        self.pe = get_pe(pe_type, n_embd, block_size)
+        self.wte = nn.Embedding(vocab_size, n_embd)
+        self.wpe = get_pe(pe_type, n_embd, block_size)
         self.n_embd = n_embd
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
 
         # idx and targets are both (B,T) tensor of integers
-        tok_emb = self.token_embedding_table(idx) # (B,T,C)
-        pos_emb = self.pe(tok_emb)
-        x = tok_emb + pos_emb
-        qkv = self.fc_qkv(x) # (B,T,3*C)
-        q, k, v = qkv.split(self.n_embd, dim=-1) # (B,T,C)
+        x = self.wpe(self.wte(idx)) # (B,T,C)
         out = F.scaled_dot_product_attention(
-            query=q, key=k, value=v,
+            query=x, key=x, value=x,
             is_causal=True
         )
         logits = self.lm_head(out) # (B,T,vocab_size)

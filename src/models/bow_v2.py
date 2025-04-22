@@ -1,45 +1,32 @@
-import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from .utils import get_pe
 
-__all__ = ['BoW']
+__all__ = ['BoW_v2']
 
 # -----------------------------------------------------------------------------
-# Bag of Words (BoW) language model
+# Bag of Words (BoW) language model v2: uses scaled dot product attention
+# -----------------------------------------------------------------------------
 
 class CausalBoW(nn.Module):
-    """
-    Causal bag of words. Averages the preceding elements and looks suspiciously like
-    a CausalAttention module you'd find in a transformer, for no apparent reason at all ;)
-    """
-    def __init__(self, block_size:int):
+    def __init__(self):
         super().__init__()
 
-        # used to mask out vectors and preserve autoregressive property
-        self.block_size = block_size
-        self.register_buffer("bias", torch.tril(torch.ones(block_size, block_size))
-                            .view(1, block_size, block_size))
-
     def forward(self, x):
-        B, T, C = x.size() # batch size, sequence length, n_embd
-
-        # do the weighted average of all preceeding token features
-        att = torch.zeros((B, T, T), device=x.device)
-        att = att.masked_fill(self.bias[:,:T,:T] == 0, float('-inf'))
-        att = F.softmax(att, dim=-1)
-        y = att @ x # (B, T, T) x (B, T, C) -> (B, T, C)
-
+        y = F.scaled_dot_product_attention(
+            query=x, key=x, value=x,
+            is_causal=True
+        )
         return y
 
 class BoWBlock(nn.Module):
     """ collects BoW features and adds an MLP """
 
-    def __init__(self, n_embd:int, n_embd2:int, block_size:int):
+    def __init__(self, n_embd:int, n_embd2:int):
         super().__init__()
 
         # Causal BoW module
-        self.cbow = CausalBoW(block_size)
+        self.cbow = CausalBoW()
         # MLP assembler
         self.mlp = nn.ModuleDict(dict(
             c_fc    = nn.Linear(n_embd, n_embd2),
@@ -53,7 +40,7 @@ class BoWBlock(nn.Module):
         x = x + self.mlpf(x)
         return x
 
-class BoW(nn.Module):
+class BoW_v2(nn.Module):
     """
     takes the previous block_size tokens, encodes them with a lookup table,
     also encodes their positions with lookup table, then averages all of those
@@ -69,7 +56,7 @@ class BoW(nn.Module):
         # position embedding
         self.wpe = get_pe(pe_type, n_embd, block_size)
         # context block
-        self.context_block = BoWBlock(n_embd, n_embd2, block_size)
+        self.context_block = BoWBlock(n_embd, n_embd2)
         # language model head decoder layer
         self.lm_head = nn.Linear(n_embd, self.vocab_size)
 

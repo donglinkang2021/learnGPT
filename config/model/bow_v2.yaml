@@ -1,0 +1,7 @@
+# filepath: config/model/bow_v2.yaml
+_target_: src.models.BoW_v2
+n_embd: 64
+n_embd2: 64
+block_size: ${training.block_size}
+pe_type: 'randn'
+vocab_size: ???
