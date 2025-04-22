@@ -1,13 +1,3 @@
-# 如何添加一个新模型
-
-写新模型的流程
-
-1. 在 `src/models/` 中新建一个 `new_model.py`
-2. 在 `src/models/__init__.py` 中注册模型
-3. 在 `config/model/` 中新建一个 `new_model.yaml`
-4. 在 `scripts/`中新建一个 `train_new_model.sh`
-
-```sh
 #!/bin/bash
 
 # Prompt for the model name (file name)
@@ -34,4 +24,4 @@ echo "Creating scripts/train_${model_name}.sh"
 touch scripts/train_${model_name}.sh
 
 echo "Done! Please modify the created files accordingly."
-```
+# bash scripts/new_model.sh
