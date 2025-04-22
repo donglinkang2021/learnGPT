@@ -6,3 +6,4 @@ from .bow import BoW
 from .bow_v2 import BoW_v2
 from .mlp import MLP
 from .rnn import RNN
+from .gpt_v3 import GPTLanguageModel_v3
