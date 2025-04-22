@@ -27,12 +27,14 @@ class CausalSelfAttention(nn.Module):
     explicit implementation here to show that there is nothing too scary here.
     """
 
-    def __init__(self, n_embd:int, n_head:int):
+    def __init__(self, n_embd:int, n_head:int, dropout:float):
         super().__init__()
         assert n_embd % n_head == 0
         # key, query, value projections for all heads, but in a batch
         self.c_attn = nn.Linear(n_embd, 3 * n_embd)
         self.c_proj = nn.Linear(n_embd, n_embd) # output projection
+        self.attn_dropout = dropout
+        self.proj_dropout = nn.Dropout(dropout)
         self.n_head = n_head
         self.n_embd = n_embd
 
@@ -43,26 +45,25 @@ class CausalSelfAttention(nn.Module):
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        y = F.scaled_dot_product_attention(query=q, key=k, value=v, is_causal=True)
+        y = F.scaled_dot_product_attention(query=q, key=k, value=v, is_causal=True, dropout_p=self.attn_dropout)
         y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
-        y = self.c_proj(y) # output projection
+        y = self.proj_dropout(self.c_proj(y)) # (B, T, C)
         return y
 
 class Block(nn.Module):
     """ an unassuming Transformer block """
 
-    def __init__(self, n_embd:int, n_head:int):
+    def __init__(self, n_embd:int, n_head:int, dropout:float):
         super().__init__()
         self.ln_1 = nn.LayerNorm(n_embd)
-        self.attn = CausalSelfAttention(n_embd, n_head)
+        self.attn = CausalSelfAttention(n_embd, n_head, dropout)
         self.ln_2 = nn.LayerNorm(n_embd)
-        self.mlp = nn.ModuleDict(dict(
-            c_fc    = nn.Linear(n_embd, 4 * n_embd),
-            c_proj  = nn.Linear(4 * n_embd, n_embd),
-            act     = NewGELU(),
-        ))
-        m = self.mlp
-        self.mlpf = lambda x: m.c_proj(m.act(m.c_fc(x))) # MLP forward
+        self.mlpf = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd), # c_fc
+            NewGELU(), # act
+            nn.Linear(4 * n_embd, n_embd), # c_proj
+            nn.Dropout(dropout),
+        )
 
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -72,17 +73,27 @@ class Block(nn.Module):
 class GPTLanguageModel_v3(nn.Module):
     """ Transformer Language Model, exactly as seen in GPT-2 """
 
-    def __init__(self, n_layer:int, n_head:int, n_embd:int, block_size:int, vocab_size:int, pe_type:str='randn'):
+    def __init__(self, n_layer:int, n_head:int, n_embd:int, block_size:int, vocab_size:int, dropout, pe_type:str='randn'):
         super().__init__()
         self.block_size = block_size
 
         self.transformer = nn.ModuleDict(dict(
             wte = nn.Embedding(vocab_size, n_embd),
             wpe = get_pe(pe_type, n_embd, block_size),
-            h = nn.ModuleList([Block(n_embd, n_head) for _ in range(n_layer)]),
+            h = nn.ModuleList([Block(n_embd, n_head, dropout) for _ in range(n_layer)]),
             ln_f = nn.LayerNorm(n_embd),
         ))
         self.lm_head = nn.Linear(n_embd, vocab_size, bias=False)
+
+        self.apply(self._init_weights)
+
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, idx, targets=None):
         # forward the GPT model itself
