@@ -2,7 +2,7 @@
 
 > 20250421 20:09
 
-在最原始的最简单的bigram模型上做了38组实验
+在最原始的最简单的bigram模型上做了38组实验，[实验结果](../results/bigram.md)
 
 - bigram-origin x1
 - bigram-matrix_factorization x1
@@ -213,48 +213,3 @@ class BigramLanguageModel(nn.Module):
 
         return logits, loss
 ```
-
-### 结果
-
-Sort by `Final/val_loss`:
-
-| Model                                                              |   Final/train_loss |   Final/val_loss | pe_type   | n_embd   | block_size   |
-|--------------------------------------------------------------------|--------------------|------------------|-----------|----------|--------------|
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-20-16) |            2.29301 |          2.34159 | rope      | 128      | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-25-14) |            2.29731 |          2.35153 | rope      | 256      | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-19-01) |            2.31559 |          2.35512 | rope      | 128      | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-15-22) |            2.30827 |          2.35685 | rope      | 64       | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-24-01) |            2.31707 |          2.3629  | rope      | 256      | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-14-09) |            2.32758 |          2.36591 | rope      | 64       | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-12-57) |            2.34373 |          2.37046 | rope      | 64       | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-17-48) |            2.34388 |          2.3811  | rope      | 128      | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-22-47) |            2.34317 |          2.38346 | rope      | 256      | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-05-55) |            2.3452  |          2.39416 | sinpe     | 128      | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-10-35) |            2.34554 |          2.39477 | sinpe     | 256      | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-01-21) |            2.36056 |          2.39928 | sinpe     | 64       | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-11-45) |            2.39232 |          2.40226 | rope      | 64       | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-04-47) |            2.36007 |          2.40295 | sinpe     | 128      | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-00-13) |            2.36861 |          2.40418 | sinpe     | 64       | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-09-25) |            2.36206 |          2.40468 | sinpe     | 256      | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-59-05) |            2.37837 |          2.40813 | sinpe     | 64       | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-16-35) |            2.38531 |          2.40827 | rope      | 128      | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-08-15) |            2.37756 |          2.41735 | sinpe     | 256      | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-03-39) |            2.37735 |          2.41932 | sinpe     | 128      | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-21-34) |            2.39172 |          2.42304 | rope      | 256      | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-57-58) |            2.41873 |          2.43779 | sinpe     | 64       | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-02-32) |            2.40868 |          2.43876 | sinpe     | 128      | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-45-18) |            2.42484 |          2.44766 | randn     | 64       | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-20-07-05) |            2.41717 |          2.44974 | sinpe     | 256      | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-54-30) |            2.43223 |          2.45635 | randn     | 256      | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-44-10) |            2.4437  |          2.46126 | randn     | 64       | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-50-59) |            2.43224 |          2.46413 | randn     | 128      | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-53-22) |            2.44862 |          2.46461 | randn     | 256      | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-46-26) |            2.43196 |          2.46568 | randn     | 64       | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-49-52) |            2.43121 |          2.46648 | randn     | 128      | 16           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-48-44) |            2.44028 |          2.46785 | randn     | 128      | 8            |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-55-38) |            2.44278 |          2.46921 | randn     | 256      | 32           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-47-33) |            2.43417 |          2.47043 | randn     | 64       | 64           |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-52-08) |            2.43702 |          2.4764  | randn     | 128      | 64           |
-| [BigramLanguageModel](./logs/bigram_exp/2025-04-21-12-20-37)       |            2.45193 |          2.48322 | None      | None     | None         |
-| [BigramLanguageModel_v2](./logs/bigram_v2_exp/2025-04-22-19-56-47) |            2.4397  |          2.48324 | randn     | 256      | 64           |
-| [BigramLanguageModel_mf](./logs/bigram_mf_exp/2025-04-21-15-51-30) |            2.48206 |          2.50986 | None      | 384      | None         |
