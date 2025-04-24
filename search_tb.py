@@ -26,12 +26,13 @@ def simlify(metrics:list) -> list:
     for metric in metrics:
         new_metric = {}
         # new_metric['Model'] = f"[{metric['Model']}]({metric['Run']}/config.yaml)"
-        # new_metric['Experiment'] = metric['Logger'].get('name', 'None')
-        new_metric['cell_type'] = metric['Params'].get('cell_type', 'None')
+        new_metric['Experiment'] = metric['Logger'].get('name', 'None')
+        new_metric['pe_type'] = metric['Params'].get('pe_type', 'None')
         new_metric['n_embd'] = metric['Params'].get('n_embd', 'None')
-        new_metric['n_embd2'] = metric['Params'].get('n_embd2', 'None')
-        new_metric['block_size'] = metric['Params'].get('block_size', 'None')     
-        new_metric['learning_rate'] = metric['Training'].get('learning_rate', 'None')
+        new_metric['n_head'] = metric['Params'].get('n_head', 'None')
+        new_metric['n_layer'] = metric['Params'].get('n_layer', 'None')
+        # new_metric['block_size'] = metric['Params'].get('block_size', 'None')     
+        # new_metric['learning_rate'] = metric['Training'].get('learning_rate', 'None')
         new_metric['Final/train_loss'] = metric['Final/train_loss']
         new_metric['Final/val_loss'] = metric['Final/val_loss']
         new_metrics.append(new_metric)
@@ -78,7 +79,8 @@ def search(query: str = None):
     metrics = [metric for metric in metrics if 'Final/val_loss' in metric]
     print(f"Found {len(metrics)} event files.")
 
-    sorted_metrics = sorted(metrics, key=lambda x: x['Final/val_loss'])
+    # sorted_metrics = sorted(metrics, key=lambda x: x['Final/val_loss'])
+    sorted_metrics = sorted(metrics, key=lambda x: x['Final/train_loss'])
     # print(tabulate(simlify(sorted_metrics[:15]), headers='keys', tablefmt='github'))
     print(tabulate(simlify(sorted_metrics), headers='keys', tablefmt='github'))
 

@@ -41,8 +41,4 @@ bash scripts/train_gpt_v2.sh # cost 12:48 faster
 - [x] bow 见 [docs/experiment/bow.md](docs/experiment/bow.md)
 - [x] mlp 见 [docs/experiment/mlp.md](docs/experiment/mlp.md)
 - [x] rnn 见 [docs/experiment/rnn.md](docs/experiment/rnn.md)，考虑之后再补lstm
-- [ ] gpt
-
-后续想法
-
-- [ ] gpt: mlp -> quantize
+- [x] gpt 见 [docs/experiment/gpt.md](docs/experiment/gpt.md)，后续工作也在文档中
