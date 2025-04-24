@@ -38,13 +38,10 @@ bash scripts/train_gpt_v2.sh # cost 12:48 faster
 
 - [x] bigram + matrix factorization 效果基本没有变化，反而因为多了参数时间变长了变成了58s，现在的想法是看可不可以加入最简单的attention看一下有没有效果
 - [x] bigram + pe 看看有没有效果，引入了一些简单的注意力机制，但没有分头也没有多层，不确定会不会有效果，先训练再看看，训练细节见 [docs/experiment/bigram_v2.md](docs/experiment/bigram_v2.md)
-- [ ] bow
-- [ ] mlp
-- [ ] rnn
-- [ ] gru
-- [ ] lstm
-- [ ] gpt + sinpe
-- [ ] gpt + rope
+- [x] bow 见 [docs/experiment/bow.md](docs/experiment/bow.md)
+- [x] mlp 见 [docs/experiment/mlp.md](docs/experiment/mlp.md)
+- [x] rnn 见 [docs/experiment/rnn.md](docs/experiment/rnn.md)，考虑之后再补lstm
+- [ ] gpt
 
 后续想法
 
