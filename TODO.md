@@ -42,3 +42,13 @@ bash scripts/train_gpt_v2.sh # cost 12:48 faster
 - [x] mlp 见 [docs/experiment/mlp.md](docs/experiment/mlp.md)
 - [x] rnn 见 [docs/experiment/rnn.md](docs/experiment/rnn.md)，考虑之后再补lstm
 - [x] gpt 见 [docs/experiment/gpt.md](docs/experiment/gpt.md)，后续工作也在文档中
+
+------
+
+20250909 update
+
+- [ ] 更好的日志管理，希望改成用wandb或者swanlab
+- [ ] 目前要完成的任务其实就是先把baseline跑出来
+- [ ] 实现linear attention，gqa，mha，mqa，mla并做对比
+- [ ] 实现自己的vq版本，MoE版本并作对比
+- [ ] 另外希望之后可以把rope的部分给重新加进去，自己目前写的方式不对 
