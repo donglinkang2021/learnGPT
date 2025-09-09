@@ -3,10 +3,11 @@ import torch
 from src.data import get_tokenizer, get_data
 from src.models.utils import generate
 from src.utils import omegaconf2tb
-from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import hydra # Add hydra import
-from omegaconf import DictConfig, OmegaConf # Add omegaconf imports
+import hydra
+from omegaconf import DictConfig, OmegaConf
+from hydra.core.hydra_config import HydraConfig
+from logger import Logger # 引入 Logger
 
 # data loading (adjust to use cfg)
 def get_batch(split, cfg: DictConfig, train_data, val_data):
@@ -41,6 +42,11 @@ def main(cfg: DictConfig) -> None:
     print("Configuration:\n", OmegaConf.to_yaml(cfg)) # Print the resolved config
     torch.manual_seed(cfg.training.torch_seed)
 
+    # --- Logger Initialization ---
+    logger = Logger(cfg)
+    output_dir = HydraConfig.get().runtime.output_dir
+    print(f"Output directory: {output_dir}")
+
     # --- Data Loading ---
     # Use cfg.data.path
     text = get_data(cfg.data.path)
@@ -61,16 +67,6 @@ def main(cfg: DictConfig) -> None:
     # Use cfg.training.learning_rate
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.training.learning_rate)
 
-    # --- Logging ---
-    # Hydra automatically changes the working directory. Use hydra.runtime.output_dir
-    log_dir = "{}/{}/{}".format(
-        cfg.logger.save_dir,
-        cfg.logger.name,
-        cfg.logger.version
-    )   
-    print(f"TensorBoard log directory: {log_dir}")
-    writer = SummaryWriter(log_dir=log_dir)
-
     # --- Training Loop ---
     # Use cfg.training values
     for iter in tqdm(range(cfg.training.max_iters), desc="Training", dynamic_ncols=True):
@@ -78,8 +74,7 @@ def main(cfg: DictConfig) -> None:
             # Pass cfg, model, data to estimate_loss
             losses = estimate_loss(cfg, model, train_data, val_data)
             tqdm.write(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-            writer.add_scalar('Loss/train', losses['train'], iter)
-            writer.add_scalar('Loss/val', losses['val'], iter)
+            logger.log_metrics({'Loss/train': losses['train'], 'Loss/val': losses['val']}, step=iter)
 
         # Pass cfg to get_batch
         xb, yb = get_batch('train', cfg, train_data, val_data)
@@ -94,6 +89,8 @@ def main(cfg: DictConfig) -> None:
         'Final/train_loss': losses['train'],
         'Final/val_loss': losses['val'],
     }
+    logger.log_metrics(metrics, step=cfg.training.max_iters)
+
 
     # --- Generation ---
     context = torch.zeros((1, 1), dtype=torch.long, device=cfg.training.device)
@@ -101,23 +98,18 @@ def main(cfg: DictConfig) -> None:
     generated_output = decode(generate(model, context, max_new_tokens=1000, block_size=cfg.training.block_size)[0].tolist())
     tqdm.write("\n--- Generated Text ---")
     tqdm.write(generated_output)
-    # Optionally save generated text to a file in the output directory
-    with open(f"{log_dir}/generated_output.txt", "w") as f:
-        f.write(generated_output)
+    # Log generated text
+    logger.log_text("Generated Text", generated_output, step=cfg.training.max_iters)
     
-    # log hyperparameters to TensorBoard
-    writer.add_hparams(
-        hparam_dict = omegaconf2tb(cfg),
-        metric_dict = metrics,
-    )
-
-    writer.close()
-    print(f"Training complete. Logs and outputs in: {log_dir}")
+    # hparams are logged at logger initialization
+    
+    logger.close()
+    print(f"Training complete. Logs and outputs in: {output_dir}")
 
     # Save the model
-    # torch.save(model.state_dict(), f"{log_dir}/model.pth")
+    # torch.save(model.state_dict(), f"{output_dir}/model.pth")
     # Save the config
-    OmegaConf.save(cfg, f'{log_dir}/config.yaml')
+    OmegaConf.save(cfg, f'{output_dir}/config.yaml')
 
 # Entry point for the script
 if __name__ == "__main__":
