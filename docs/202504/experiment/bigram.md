@@ -148,10 +148,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .utils import get_pe
 
-__all__ = ['BigramLanguageModel_v2']
+__all__ = ['Bigram_v2']
 
 # super simple bigram model with matrix factorization
-class BigramLanguageModel_v2(nn.Module):
+class Bigram_v2(nn.Module):
 
     def __init__(self, vocab_size, n_embd, block_size, pe_type='randn'):
         super().__init__()
@@ -188,10 +188,10 @@ class BigramLanguageModel_v2(nn.Module):
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['BigramLanguageModel']
+__all__ = ['Bigram']
 
 # super simple bigram model
-class BigramLanguageModel(nn.Module):
+class Bigram(nn.Module):
 
     def __init__(self, vocab_size):
         super().__init__()
