@@ -3,6 +3,6 @@ defaults:
   - data: default
   - model: gpt
   - training: default
-  - logger: tensorboard
-  - hydra: single_run
+  - logger: swanlab
+  - hydra: default
   - _self_

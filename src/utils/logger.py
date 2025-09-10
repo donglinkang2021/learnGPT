@@ -17,7 +17,7 @@ class Logger:
         self.logger_type = config.logger.type
         self.writer = None
 
-        config_dict = OmegaConf.to_container(config, resolve=True, throw_on_missing=True)
+        config_dict = OmegaConf.to_container(config, resolve=True)
 
         if self.logger_type == "swanlab":
             swanlab.init(

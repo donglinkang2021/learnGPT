@@ -1,0 +1,3 @@
+type: swanlab
+project_name: learnGPT
+run_name: ${get_model_suffix:${model._target_}}

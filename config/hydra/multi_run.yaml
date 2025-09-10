@@ -1,3 +1,0 @@
-sweep:
-  dir: ${logger.save_dir}/${logger.name}
-  subdir: ${now:%Y-%m-%d-%H-%M-%S}

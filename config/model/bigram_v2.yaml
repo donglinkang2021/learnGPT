@@ -2,5 +2,5 @@
 _target_: src.models.BigramLanguageModel_v2
 n_embd: 64
 block_size: ${training.block_size}
-pe_type: 'randn'
+pe_type: 'rope'
 vocab_size: ???

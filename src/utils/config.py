@@ -18,3 +18,9 @@ def omegaconf2tb(cfg: DictConfig):
     # This is useful for logging hyperparameters to TensorBoard
     omegaconf_dict = OmegaConf.to_container(cfg, resolve=True) # resolve=True means replace ${} with true values
     return flatten(omegaconf_dict)
+
+def get_model_suffix(_target_: str) -> str:
+    return _target_.split(".")[-1]
+
+def register_omegaconf_resolvers():
+    OmegaConf.register_new_resolver("get_model_suffix", get_model_suffix)

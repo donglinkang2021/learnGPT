@@ -7,3 +7,4 @@ eval_interval: 500
 eval_iters: 200
 device: 'cuda' # or 'cpu'
 torch_seed: 1337
+log_dir: logs

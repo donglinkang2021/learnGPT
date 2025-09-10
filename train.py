@@ -1,13 +1,15 @@
 # filepath: train.py
 import torch
-from src.data import get_tokenizer, get_data
-from src.models.utils import generate
-from src.utils import omegaconf2tb
 from tqdm import tqdm
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from hydra.core.hydra_config import HydraConfig
-from logger import Logger # 引入 Logger
+
+from src.data import get_tokenizer, get_data
+from src.models.utils import generate
+from src.utils.logger import Logger
+from src.utils.config import register_omegaconf_resolvers
+register_omegaconf_resolvers()
 
 # data loading (adjust to use cfg)
 def get_batch(split, cfg: DictConfig, train_data, val_data):
@@ -39,7 +41,7 @@ def estimate_loss(cfg: DictConfig, model, train_data, val_data):
 # Use hydra decorator for the main function
 @hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
-    print("Configuration:\n", OmegaConf.to_yaml(cfg)) # Print the resolved config
+    print("Configuration:\n", OmegaConf.to_yaml(cfg, resolve=True)) # Print the resolved config
     torch.manual_seed(cfg.training.torch_seed)
 
     # --- Logger Initialization ---

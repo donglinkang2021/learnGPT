@@ -1,9 +1,9 @@
 # filepath: config/model/gpt_v3.yaml
 _target_: src.models.GPTLanguageModel_v3
 block_size: ${training.block_size}
-n_embd: 384
+n_embd: 64
 n_head: 6
 n_layer: 6
 dropout: 0.2
-pe_type: 'randn'
+pe_type: 'sinpe'
 vocab_size: ???
