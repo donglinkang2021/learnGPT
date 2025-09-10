@@ -1,8 +1,8 @@
 # filepath: config/model/gpt_v2.yaml
-_target_: src.models.GPTLanguageModel_v2
+_target_: src.models.GPT_v2
 block_size: ${training.block_size}
 n_embd: 64
-n_head: 6
+n_head: 8
 n_layer: 6
 dropout: 0.2
 vocab_size: ???

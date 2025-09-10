@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['GPTLanguageModel_v2']
+__all__ = ['GPT_v2']
 
 class Head(nn.Module):
     """ one head of self-attention """
@@ -71,7 +71,7 @@ class Block(nn.Module):
         x = x + self.ffwd(self.ln2(x))
         return x
 
-class GPTLanguageModel_v2(nn.Module):
+class GPT_v2(nn.Module):
 
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, dropout):
         super().__init__()

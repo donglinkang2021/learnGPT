@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from .utils import get_pe
 import math
 
-__all__ = ['GPTLanguageModel_v3']
+__all__ = ['GPT_v3']
 
 # Transformer Language Model (*exactly* as used in GPT-2)
 
@@ -70,10 +70,10 @@ class Block(nn.Module):
         x = x + self.mlpf(self.ln_2(x))
         return x
 
-class GPTLanguageModel_v3(nn.Module):
+class GPT_v3(nn.Module):
     """ Transformer Language Model, exactly as seen in GPT-2 """
 
-    def __init__(self, n_layer:int, n_head:int, n_embd:int, block_size:int, vocab_size:int, dropout, pe_type:str='randn'):
+    def __init__(self, n_layer:int, n_head:int, n_embd:int, block_size:int, vocab_size:int, dropout:float, pe_type:str='randn'):
         super().__init__()
         self.block_size = block_size
 

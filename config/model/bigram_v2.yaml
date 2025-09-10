@@ -1,5 +1,5 @@
 # filepath: config/model/bigram_v2.yaml
-_target_: src.models.BigramLanguageModel_v2
+_target_: src.models.Bigram_v2
 n_embd: 64
 block_size: ${training.block_size}
 pe_type: 'rope'

@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['BigramLanguageModel']
+__all__ = ['Bigram']
 
 # super simple bigram model
-class BigramLanguageModel(nn.Module):
+class Bigram(nn.Module):
 
     def __init__(self, vocab_size):
         super().__init__()
