@@ -58,6 +58,13 @@ tensorboard --logdir logs --bind_all
 - [x] 更好的日志管理，希望改成用wandb或者swanlab
 - [x] 目前要完成的任务其实就是先把baseline跑出来
 - [x] 稍微优化一下各个class的名字
-- [ ] 另外希望之后可以把rope的部分给重新加进去，自己目前写的方式不对 
-- [ ] 实现linear attention，gqa，mha，mqa，mla并做对比
+- [x] 另外希望之后可以把rope的部分给重新加进去，自己目前写的方式不对 
+- [ ] 实现linear-attention，gqa，mha，mqa，mla并做对比
 - [ ] 实现自己的vq版本，MoE版本并作对比
+- [ ] 对于Norm也可以看看DyT, RMSNorm这些是否真的有作用
+
+可以更加具体的看重要参考下面两个repo来更新自己对模型的认知
+
+- [qwen3](https://github.com/GeeeekExplorer/nano-vllm/blob/main/nanovllm/models/qwen3.py)
+- [llama31](https://github.com/karpathy/nano-llama31/blob/master/llama31.py)
+- [qwen3-moe](https://github.com/junjinyong/Qwen3-MoE/blob/main/cpu/qwen3_moe/modeling_qwen3_moe.py)

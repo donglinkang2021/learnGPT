@@ -1,0 +1,8 @@
+# filepath: config/model/gpt_rope.yaml
+_target_: src.models.GPT_rope
+block_size: ${training.block_size}
+n_embd: 64
+n_head: 8
+n_layer: 6
+dropout: 0.2
+vocab_size: ???

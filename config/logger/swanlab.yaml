@@ -1,3 +1,3 @@
 type: swanlab
 project_name: learnGPT
-run_name: ${get_model_suffix:${model._target_}}-${model.pe_type}-${model.n_embd}-${model.n_head}-${model.n_layer}
+run_name: ${get_model_suffix:${model._target_}}-${model.n_embd}-${model.n_head}-${model.n_layer}
