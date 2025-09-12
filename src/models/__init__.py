@@ -8,3 +8,4 @@ from .mlp import MLP
 from .rnn import RNN
 from .gpt_v3 import GPT_v3
 from .gpt_rope import GPT_rope
+from .gpt_attn import GPT_attn
