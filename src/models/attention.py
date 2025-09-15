@@ -182,9 +182,10 @@ class LucidLinearAttention(nn.Module):
     def forward(self, x, mask=None):
         B, T, _ = x.shape
         qkv = self.fc_qkv(x)
-        q, k, v = qkv.chunk(3, dim=-1)
-        
-        q, k, v = map(lambda t: split_heads(t, self.head_dim), (q, k, v))
+        qkv = split_heads(qkv, self.head_dim)
+        q, k, v = qkv.chunk(chunks=3, dim=1)
+        q = q.softmax(dim=-1)
+        q = q * (self.head_dim ** -0.5)
 
         is_causal = mask is None or mask.bool().any()
 
@@ -193,10 +194,7 @@ class LucidLinearAttention(nn.Module):
             bucket_size = self.bucket_size
             assert (T % bucket_size) == 0, f'Sequence length {T} must be divisible by bucket size {bucket_size}'
 
-            q = q.softmax(dim=-1)
             k = torch.exp(k) # Use exp as in lucidrains implementation for causal
-
-            q = q * (self.head_dim ** -0.5)
 
             if mask is not None:
                 # Assuming mask is (B, T), convert to (B, 1, T, 1) for broadcasting
@@ -236,12 +234,70 @@ class LucidLinearAttention(nn.Module):
                 k = k.masked_fill(~b_mask, -torch.finfo(k.dtype).max)
                 v = v.masked_fill(~b_mask, 0.)
 
-            q = q.softmax(dim=-1)
             k = k.softmax(dim=-2) # Softmax over sequence length
-
-            q = q * (self.head_dim ** -0.5)
-
             context = torch.einsum('bhtd,bhte->bhde', k, v)
             xo = torch.einsum('bhtd,bhde->bhte', q, context)
 
+        return self.fc_out(cat_heads(xo))
+
+class SoftmaxLinearAttention(nn.Module):
+    def __init__(self, d_model, n_heads, use_loop_impl: bool = False, **kwargs):
+        super().__init__()
+        assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
+        self.head_dim = d_model // n_heads
+        self.n_heads = n_heads
+        self.use_loop_impl = use_loop_impl
+        self.fc_qkv = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.fc_out = nn.Linear(d_model, d_model, bias=False)
+
+    def forward(self, x:torch.Tensor, mask:torch.Tensor=None):
+        qkv = self.fc_qkv(x)
+        qkv = split_heads(qkv, self.head_dim)
+        q, k, v = qkv.chunk(chunks=3, dim=1)
+        q = q.softmax(dim=-1)
+        # Causal linear attention with softmax
+        is_causal = mask is None or mask.bool().any()
+        if is_causal:
+            if self.use_loop_impl:
+                # Iterative/Loop implementation for causal softmax linear attention
+                B, nH, T, Hs = q.shape
+                d_v = v.shape[-1]
+                outputs = []
+                
+                # KV accumulates the weighted sum of values
+                KV = torch.zeros(B, nH, Hs, d_v, device=q.device, dtype=v.dtype)
+                # S accumulates the softmax denominator
+                S = torch.zeros(B, nH, Hs, device=q.device, dtype=k.dtype)
+                # K_max tracks the running max of keys for numerical stability
+                K_max = torch.full((B, nH, Hs), -torch.finfo(k.dtype).max, device=k.device, dtype=k.dtype)
+
+                for i in range(T):
+                    k_i = k[:, :, i, :]  # (B, nH, Hs)
+                    v_i = v[:, :, i, :]  # (B, nH, d_v)
+                    q_i = q[:, :, i, :]  # (B, nH, Hs)
+
+                    # Rescale accumulated states with the change in max
+                    K_max_new = torch.maximum(K_max, k_i) # (B, nH, Hs)
+                    exp_diff = torch.exp(K_max - K_max_new) # (B, nH, Hs)
+                    exp_k = torch.exp(k_i - K_max_new) # (B, nH, Hs)
+                    K_max = K_max_new                    
+                    S = S * exp_diff + exp_k # (B, nH, Hs)
+                    KV = KV * exp_diff.unsqueeze(-1) + torch.einsum('bhd,bhv->bhdv', exp_k, v_i)
+
+                    # Calculate output for timestep i
+                    out_i = torch.einsum('bhd,bhdv->bhv', q_i, KV) / S
+                    outputs.append(out_i.unsqueeze(2))
+                
+                xo = torch.cat(outputs, dim=2)
+            else:
+                k_exp = torch.exp(k - k.max(dim=2, keepdim=True).values) # (B, H, T, C)
+                k_exp_cumsum = k_exp.cumsum(dim=2) # (B, H, T, C)
+                k_exp_v_cumsum = torch.einsum('bhtc, bhtd -> bhtcd', k_exp, v).cumsum(dim=2) # (B, H, T, C, D)
+                kv = k_exp_v_cumsum / k_exp_cumsum.unsqueeze(-1) # (B, H, T, C, D)
+                xo = torch.einsum('bhtc, bhtcd -> bhtd', q, kv) # (B, H, T, D)
+        else:
+            k = k.softmax(dim=-2) # Softmax over sequence length
+            context = torch.einsum('bhtd,bhte->bhde', k, v)
+            xo = torch.einsum('bhtd,bhde->bhte', q, context)
+            
         return self.fc_out(cat_heads(xo))
