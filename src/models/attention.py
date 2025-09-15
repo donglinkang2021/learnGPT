@@ -164,3 +164,84 @@ class LinearAttention(nn.Module):
             z = 1 / (torch.einsum('bhtd,bhd->bht', q, k.sum(dim=2)) + 1e-6)
             xo = torch.einsum('bhtd,bhdf->bhtf', q, kv) * z.unsqueeze(-1)
             return self.fc_out(cat_heads(xo))
+
+class LucidLinearAttention(nn.Module):
+    def __init__(self, d_model, n_heads, bucket_size=64, **kwargs):
+        """
+        just implement the bucket-level/block-wise causality (not token-level causalty) to speed up the linear attention
+        refer https://github.com/lucidrains/linear-attention-transformer/blob/master/linear_attention_transformer/linear_attention_transformer.py#L204
+        """
+        super().__init__()
+        assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
+        self.head_dim = d_model // n_heads
+        self.n_heads = n_heads
+        self.bucket_size = bucket_size
+        self.fc_qkv = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.fc_out = nn.Linear(d_model, d_model, bias=False)
+
+    def forward(self, x, mask=None):
+        B, T, _ = x.shape
+        qkv = self.fc_qkv(x)
+        q, k, v = qkv.chunk(3, dim=-1)
+        
+        q, k, v = map(lambda t: split_heads(t, self.head_dim), (q, k, v))
+
+        is_causal = mask is None or mask.bool().any()
+
+        if is_causal:
+            # Causal linear attention with bucketing
+            bucket_size = self.bucket_size
+            assert (T % bucket_size) == 0, f'Sequence length {T} must be divisible by bucket size {bucket_size}'
+
+            q = q.softmax(dim=-1)
+            k = torch.exp(k) # Use exp as in lucidrains implementation for causal
+
+            q = q * (self.head_dim ** -0.5)
+
+            if mask is not None:
+                # Assuming mask is (B, T), convert to (B, 1, T, 1) for broadcasting
+                b_mask = mask[:, None, :, None]
+                k = k.masked_fill(~b_mask, 0.)
+                v = v.masked_fill(~b_mask, 0.)
+
+            bucket_fn = lambda t: rearrange(t, 'b h (n s) d -> b h n s d', s=bucket_size)
+            b_q, b_k, b_v = map(bucket_fn, (q, k, v)) # batch_size, n_heads, n_buckets, bucket_size, head_dim
+            
+            # bucket-wise causality implement, only consider the causality between the buckets
+            # ignore the causalty of tokens in the bucket
+            b_k_sum = torch.sum(b_k, dim=-2) # batch_size, n_heads, n_buckets, head_dim
+            b_k_cumsum = torch.cumsum(b_k_sum, dim=-2) # batch_size, n_heads, n_buckets, head_dim
+
+            context = torch.einsum('bhnsd,bhnse->bhnde', b_k, b_v)
+            context = torch.cumsum(context, dim=-3)
+
+            # Pad and shift for causal context
+            # the 
+            context = F.pad(context, (0, 0, 0, 0, 1, 0), value=0.) # pad 0 on the n dim on the left
+            context = context[:, :, :-1]
+
+            b_k_cumsum = F.pad(b_k_cumsum, (0, 0, 1, 0), value=0.)
+            b_k_cumsum = b_k_cumsum[:, :, :-1]
+
+            D_inv = 1. / (torch.einsum('bhnsd,bhnd->bhns', b_q, b_k_cumsum).clamp(min=1e-6))
+            attn = torch.einsum('bhnsd,bhnde,bhns->bhnse', b_q, context, D_inv)
+            
+            xo = rearrange(attn, 'b h n s e -> b h (n s) e')
+
+        else:
+            # Global (non-causal) linear attention
+            if mask is not None:
+                # Assuming mask is (B, T), convert to (B, 1, T, 1) for broadcasting
+                b_mask = mask[:, None, :, None]
+                k = k.masked_fill(~b_mask, -torch.finfo(k.dtype).max)
+                v = v.masked_fill(~b_mask, 0.)
+
+            q = q.softmax(dim=-1)
+            k = k.softmax(dim=-2) # Softmax over sequence length
+
+            q = q * (self.head_dim ** -0.5)
+
+            context = torch.einsum('bhtd,bhte->bhde', k, v)
+            xo = torch.einsum('bhtd,bhde->bhte', q, context)
+
+        return self.fc_out(cat_heads(xo))
