@@ -1,3 +1,4 @@
+# import debugpy; debugpy.connect(('0.0.0.0', 5678))
 # filepath: train.py
 import torch
 from tqdm import tqdm

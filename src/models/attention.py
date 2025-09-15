@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from einops import rearrange
 import math
 
-def split_heads(x:torch.Tensor, n_heads:int):
-    return rearrange(x, 'B T (nH Hs) -> B nH T Hs', nH=n_heads)
+def split_heads(x:torch.Tensor, head_size:int):
+    return rearrange(x, 'B T (nH Hs) -> B nH T Hs', Hs=head_size)
 
 def cat_heads(x:torch.Tensor):
     return rearrange(x, 'B nH T Hs -> B T (nH Hs)')
@@ -21,7 +21,7 @@ class MHA(nn.Module):
 
     def forward(self, x:torch.Tensor, mask:torch.Tensor=None):
         qkv = self.fc_qkv(x)
-        qkv = split_heads(qkv, self.n_heads)
+        qkv = split_heads(qkv, self.head_dim)
         xq, xk, xv = qkv.chunk(chunks=3, dim=1)
         xo = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=mask, is_causal=True if mask is None else False)
         xo = cat_heads(xo)
@@ -53,14 +53,9 @@ class GQA(nn.Module):
 
     def forward(self, x:torch.Tensor, mask:torch.Tensor=None):
         xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
-        
-        xq = split_heads(xq, self.n_heads)
-        xk = split_heads(xk, self.kv_heads)
-        xv = split_heads(xv, self.kv_heads)
-
+        xq, xk, xv = map(lambda x: split_heads(x, self.head_dim), (xq, xk, xv))
         xk = repeat_kv(xk, self.n_rep)
         xv = repeat_kv(xv, self.n_rep)
-        
         xo = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=mask, is_causal=True if mask is None else False)
         xo = cat_heads(xo)
         return self.wo(xo)
@@ -80,7 +75,7 @@ class LinearAttention(nn.Module):
 
     def forward(self, x:torch.Tensor, mask:torch.Tensor=None):
         qkv = self.fc_qkv(x)
-        qkv = split_heads(qkv, self.n_heads)
+        qkv = split_heads(qkv, self.head_dim)
         q, k, v = qkv.chunk(chunks=3, dim=1)
 
         # Use elu as activation to ensure positivity
@@ -93,7 +88,6 @@ class LinearAttention(nn.Module):
         # can be optimized with custom cuda kernel
         if mask is not None and mask.bool().any() or (mask is None):
             k_cumsum = torch.cumsum(k, dim=2)
-            k_cumsum_rev = torch.flip(torch.cumsum(torch.flip(k, dims=[2]), dim=2), dims=[2])
 
             # kv_state: (B, nH, T, Hs, Hs)
             kv_state = torch.einsum('bhtd,bhtf->bhtdf', k, v)
@@ -103,7 +97,7 @@ class LinearAttention(nn.Module):
             q_kv = torch.einsum('bhtd,bhtdf->bhtf', q, kv_cumsum)
             
             # q @ (sum of k)
-            q_k_sum = torch.einsum('bhtd,bhtf->bht', q, k_cumsum) # TODO: maybe there some long here bhtd,bhtd -> bht1d bhtd1 -> bht1 -> bht
+            q_k_sum = torch.einsum('bhtd,bhtd->bht', q, k_cumsum) # bhtd,bhtd -> bht1d bhtd1 -> bht1 -> bht
             
             # Add a small epsilon for numerical stability
             return self.fc_out(cat_heads(q_kv / (q_k_sum.unsqueeze(-1) + 1e-6)))
