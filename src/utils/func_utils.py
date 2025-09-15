@@ -134,5 +134,7 @@ def test_performance(inputs:dict, func_prefix:str, functions_to_test:list=None, 
 
     except torch.cuda.OutOfMemoryError:
         console.print("[red]CUDA out of memory. Please reduce tensor sizes for testing.[/red]")
+        console.print_exception(show_locals=True)
     except Exception as e:
         console.print(f"[red]An error occurred: {e}[/red]")
+        console.print_exception(show_locals=True)
