@@ -19,9 +19,16 @@ def run_attention_benchmark():
     num_trials = 5
     
     # --- Model Initialization ---
-    mha = MHA(d_model=d_model, n_heads=n_heads).to(device)
-    gqa = GQA(d_model=d_model, n_heads=n_heads, kv_heads=kv_heads).to(device)
-    mqa = MQA(d_model=d_model, n_heads=n_heads).to(device)
+    # With Flash Attention (F.scaled_dot_product_attention)
+    mha_flash = MHA(d_model=d_model, n_heads=n_heads, use_flash_attention=True).to(device)
+    gqa_flash = GQA(d_model=d_model, n_heads=n_heads, kv_heads=kv_heads, use_flash_attention=True).to(device)
+    mqa_flash = MQA(d_model=d_model, n_heads=n_heads, use_flash_attention=True).to(device)
+
+    # Without Flash Attention (manual implementation)
+    mha_manual = MHA(d_model=d_model, n_heads=n_heads, use_flash_attention=False).to(device)
+    gqa_manual = GQA(d_model=d_model, n_heads=n_heads, kv_heads=kv_heads, use_flash_attention=False).to(device)
+    mqa_manual = MQA(d_model=d_model, n_heads=n_heads, use_flash_attention=False).to(device)
+    
     linear_attn = LinearAttention(d_model=d_model, n_heads=n_heads).to(device)
     
     # --- Prepare Inputs ---
@@ -32,9 +39,12 @@ def run_attention_benchmark():
     # --- Functions to Test ---
     # The first function in the list is treated as the baseline for comparison.
     functions_to_test = [
-        named_partial(mha.forward, "MHA (baseline)"),
-        named_partial(gqa.forward, f"GQA (kv={kv_heads})"),
-        named_partial(mqa.forward, "MQA (kv=1)"),
+        named_partial(mha_flash.forward, "MHA (Flash)"),
+        named_partial(mha_manual.forward, "MHA (Manual)"),
+        named_partial(gqa_flash.forward, f"GQA (kv={kv_heads}, Flash)"),
+        named_partial(gqa_manual.forward, f"GQA (kv={kv_heads}, Manual)"),
+        named_partial(mqa_flash.forward, "MQA (kv=1, Flash)"),
+        named_partial(mqa_manual.forward, "MQA (kv=1, Manual)"),
         named_partial(linear_attn.forward, "LinearAttention (Causal)"),
     ]
     

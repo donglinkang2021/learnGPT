@@ -10,12 +10,32 @@ def split_heads(x:torch.Tensor, head_size:int):
 def cat_heads(x:torch.Tensor):
     return rearrange(x, 'B nH T Hs -> B T (nH Hs)')
 
+def manual_scaled_dot_product_attention(q, k, v, mask=None, is_causal=False):
+    # q, k, v: (B, nH, T, Hs)
+    d_k = q.size(-1)
+    scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
+    
+    if is_causal:
+        # This is equivalent to is_causal=True in F.scaled_dot_product_attention
+        # It will be ignored if an explicit mask is passed.
+        B, nH, T, _ = q.shape
+        causal_mask = torch.triu(torch.ones(T, T, device=q.device, dtype=torch.bool), diagonal=1)
+        scores = scores.masked_fill(causal_mask, float('-inf'))
+
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, float('-inf'))
+
+    attn_weights = F.softmax(scores, dim=-1)
+    output = torch.matmul(attn_weights, v)
+    return output
+
 class MHA(nn.Module):
-    def __init__(self, d_model, n_heads, **kwargs):
+    def __init__(self, d_model, n_heads, use_flash_attention: bool = True, **kwargs):
         super(MHA, self).__init__()
         assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
         self.head_dim = d_model // n_heads
         self.n_heads = n_heads
+        self.use_flash_attention = use_flash_attention
         self.fc_qkv = nn.Linear(d_model, 3 * d_model, bias=False)
         self.fc_out = nn.Linear(d_model, d_model, bias=False)
 
@@ -23,7 +43,11 @@ class MHA(nn.Module):
         qkv = self.fc_qkv(x)
         qkv = split_heads(qkv, self.head_dim)
         xq, xk, xv = qkv.chunk(chunks=3, dim=1)
-        xo = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=mask, is_causal=True if mask is None else False)
+        is_causal = True if mask is None else False
+        if self.use_flash_attention:
+            xo = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=mask, is_causal=is_causal)
+        else:
+            xo = manual_scaled_dot_product_attention(xq, xk, xv, mask=mask, is_causal=is_causal)
         xo = cat_heads(xo)
         return self.fc_out(xo)
 
@@ -38,7 +62,7 @@ def repeat_kv(x:torch.Tensor, n_rep:int):
     )
 
 class GQA(nn.Module):
-    def __init__(self, d_model, n_heads, kv_heads, **kwargs):
+    def __init__(self, d_model, n_heads, kv_heads, use_flash_attention: bool = True, **kwargs):
         super(GQA, self).__init__()
         assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
         assert n_heads % kv_heads == 0, "n_heads must be divisible by kv_heads"
@@ -46,6 +70,7 @@ class GQA(nn.Module):
         self.n_heads = n_heads
         self.kv_heads = kv_heads
         self.n_rep = self.n_heads // self.kv_heads
+        self.use_flash_attention = use_flash_attention
         self.wq = nn.Linear(d_model, d_model, bias=False)
         self.wk = nn.Linear(d_model, self.kv_heads * self.head_dim, bias=False)
         self.wv = nn.Linear(d_model, self.kv_heads * self.head_dim, bias=False)
@@ -53,16 +78,20 @@ class GQA(nn.Module):
 
     def forward(self, x:torch.Tensor, mask:torch.Tensor=None):
         xq, xk, xv = self.wq(x), self.wk(x), self.wv(x)
-        xq, xk, xv = map(lambda x: split_heads(x, self.head_dim), (xq, xk, xv))
+        xq, xk, xv = map(lambda t: split_heads(t, self.head_dim), (xq, xk, xv))
         xk = repeat_kv(xk, self.n_rep)
         xv = repeat_kv(xv, self.n_rep)
-        xo = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=mask, is_causal=True if mask is None else False)
+        is_causal = True if mask is None else False
+        if self.use_flash_attention:
+            xo = F.scaled_dot_product_attention(xq, xk, xv, attn_mask=mask, is_causal=is_causal)
+        else:
+            xo = manual_scaled_dot_product_attention(xq, xk, xv, mask=mask, is_causal=is_causal)
         xo = cat_heads(xo)
         return self.wo(xo)
 
 class MQA(GQA):
-    def __init__(self, d_model, n_heads, **kwargs):
-        super(MQA, self).__init__(d_model, n_heads, 1)
+    def __init__(self, d_model, n_heads, use_flash_attention: bool = True, **kwargs):
+        super(MQA, self).__init__(d_model, n_heads, 1, use_flash_attention=use_flash_attention)
 
 class LinearAttention(nn.Module):
     def __init__(self, d_model, n_heads, **kwargs):
