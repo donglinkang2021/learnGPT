@@ -15,37 +15,50 @@ def named_partial(func, name, *args, **kwargs):
 @contextmanager
 def profile_scope(device):
     """A context manager to profile a code block's execution time and memory usage."""
-    torch.cuda.reset_peak_memory_stats(device)
-    torch.cuda.empty_cache()
+    if device.type == 'cuda':
+        torch.cuda.reset_peak_memory_stats(device)
+        torch.cuda.empty_cache()
+        start_mem = torch.cuda.memory_allocated(device)
     
-    start_mem = torch.cuda.memory_allocated(device)
     start_time = time.time()
     
     # A dictionary to hold the results
     results = {}
     yield results
     
-    torch.cuda.synchronize() # Wait for the operation to complete
+    if device.type == 'cuda':
+        torch.cuda.synchronize() # Wait for the operation to complete
+    
     end_time = time.time()
     
-    peak_mem = torch.cuda.max_memory_allocated(device)
-    
     results['exec_time'] = end_time - start_time
-    results['mem_used'] = (peak_mem - start_mem) / 1024**2 # in MB
+    
+    if device.type == 'cuda':
+        peak_mem = torch.cuda.max_memory_allocated(device)
+        results['mem_used'] = (peak_mem - start_mem) / 1024**2 # in MB
+    else:
+        results['mem_used'] = 0.0
+
 
 def test_performance(inputs:dict, func_prefix:str, functions_to_test:list=None, device:torch.device=torch.device("cuda"), num_trials:int=1):
     """Test the performance of global functions with a given prefix in their name."""
     console = Console()
 
-    if not torch.cuda.is_available():
-        console.print("[bold red]CUDA not available. Skipping memory test.[/bold red]")
-        return
+    if device.type == 'cuda' and not torch.cuda.is_available():
+        console.print("[bold yellow]CUDA not available. Switching to CPU for performance test.[/bold yellow]")
+        device = torch.device("cpu")
+        # Move all input tensors to the new device
+        for k, v in inputs.items():
+            if isinstance(v, torch.Tensor):
+                inputs[k] = v.to(device)
 
     try:
+        initial_mem_str = f"{torch.cuda.memory_allocated(device) / 1024**2:.2f} MB" if device.type == 'cuda' else "N/A"
         info_panel = Panel(
+            f"[bold]Device[/bold]: {device.type}\n"
             f"[bold]Tensor Shape[/bold]: {', '.join([f'{k}: {v.shape}' for k, v in inputs.items()])}\n"
             f"[bold]Data Type[/bold]: {', '.join([f'{k}: {v.dtype}' for k, v in inputs.items()])}\n"
-            f"[bold]Initial Memory[/bold]: {torch.cuda.memory_allocated(device) / 1024**2:.2f} MB\n"
+            f"[bold]Initial Memory[/bold]: {initial_mem_str}\n"
             f"[bold]Number of Trials[/bold]: {num_trials}",
             title="[yellow]Test Configuration[/yellow]",
             border_style="blue", expand=False
@@ -61,6 +74,15 @@ def test_performance(inputs:dict, func_prefix:str, functions_to_test:list=None, 
 
         base_results = None
         
+        # --- Warm-up Phase ---
+        if functions_to_test:
+            console.print("[bold cyan]Running warm-up iteration...[/bold cyan]")
+            with profile_scope(device):
+                _ = functions_to_test[0](**inputs)
+            if device.type == 'cuda':
+                torch.cuda.synchronize()
+            console.print("[bold cyan]Warm-up complete. Starting profiling...[/bold cyan]")
+
         with console.status("[bold]Running profiling...[/bold]") as status:
             for i, func in enumerate(functions_to_test):
                 status.update(f"Profiling {func.__name__}...")
@@ -77,10 +99,10 @@ def test_performance(inputs:dict, func_prefix:str, functions_to_test:list=None, 
                     time_mean, time_std = np.mean(trial_times), np.std(trial_times)
                     mem_mean, mem_std = np.mean(trial_mems), np.std(trial_mems)
                     exec_time_str = f"{time_mean:.4f} ± {time_std:.4f}"
-                    mem_used_str = f"{mem_mean:.2f} ± {mem_std:.2f}"
+                    mem_used_str = f"{mem_mean:.2f} ± {mem_std:.2f}" if device.type == 'cuda' else "N/A"
                 else:
                     exec_time_str = f"{trial_times[0]:.4f}"
-                    mem_used_str = f"{trial_mems[0]:.2f}"
+                    mem_used_str = f"{trial_mems[0]:.2f}" if device.type == 'cuda' else "N/A"
 
                 avg_result = torch.stack(trial_results).mean(dim=0)
 
