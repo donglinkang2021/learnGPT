@@ -94,11 +94,12 @@ class MQA(GQA):
         super(MQA, self).__init__(d_model, n_heads, 1, use_flash_attention=use_flash_attention)
 
 class LinearAttention(nn.Module):
-    def __init__(self, d_model, n_heads, **kwargs):
+    def __init__(self, d_model, n_heads, use_loop_impl: bool = False, **kwargs):
         super(LinearAttention, self).__init__()
         assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
         self.head_dim = d_model // n_heads
         self.n_heads = n_heads
+        self.use_loop_impl = use_loop_impl
         self.fc_qkv = nn.Linear(d_model, 3 * d_model, bias=False)
         self.fc_out = nn.Linear(d_model, d_model, bias=False)
 
@@ -108,31 +109,58 @@ class LinearAttention(nn.Module):
         q, k, v = qkv.chunk(chunks=3, dim=1)
 
         # Use elu as activation to ensure positivity
-        q = F.elu(q) + 1
-        k = F.elu(k) + 1
+        phi = lambda t: F.elu(t) + 1
+        q, k = phi(q), phi(k)
 
         # Causal linear attention
-        # incoming q, k, v are (B, nH, T, Hs)
-        # we want to compute the output for each timestep
-        # can be optimized with custom cuda kernel
-        if mask is not None and mask.bool().any() or (mask is None):
-            k_cumsum = torch.cumsum(k, dim=2)
+        is_causal = mask is None or mask.bool().any()
+        if is_causal:
+            if self.use_loop_impl:
+                # Iterative/Loop implementation for causal linear attention
+                B, nH, T, Hs = q.shape
+                d_v = v.shape[-1]
+                outputs = []
+                # S accumulates k.T @ v for each head
+                S = torch.zeros(B, nH, Hs, d_v, device=q.device)
+                # Z accumulates k for each head
+                Z = torch.zeros(B, nH, Hs, device=q.device)
 
-            # kv_state: (B, nH, T, Hs, Hs)
-            kv_state = torch.einsum('bhtd,bhtf->bhtdf', k, v)
-            kv_cumsum = torch.cumsum(kv_state, dim=2)
-            
-            # q @ (sum of k*v)
-            q_kv = torch.einsum('bhtd,bhtdf->bhtf', q, kv_cumsum)
-            
-            # q @ (sum of k)
-            q_k_sum = torch.einsum('bhtd,bhtd->bht', q, k_cumsum) # bhtd,bhtd -> bht1d bhtd1 -> bht1 -> bht
-            
-            # Add a small epsilon for numerical stability
-            return self.fc_out(cat_heads(q_kv / (q_k_sum.unsqueeze(-1) + 1e-6)))
+                for i in range(T):
+                    k_i = k[:, :, i, :]  # (B, nH, Hs)
+                    v_i = v[:, :, i, :]  # (B, nH, d_v)
+                    q_i = q[:, :, i, :]  # (B, nH, Hs)
+
+                    # Update states
+                    # k_i.unsqueeze(-1): (B, nH, Hs, 1)
+                    # v_i.unsqueeze(-2): (B, nH, 1, d_v)
+                    S += torch.einsum('bhd,bhv->bhdv', k_i, v_i)
+                    Z += k_i
+
+                    # Calculate output for timestep i
+                    # q_i @ S
+                    qS = torch.einsum('bhd,bhdv->bhv', q_i, S)
+                    # q_i @ Z
+                    qZ = torch.einsum('bhd,bhd->bh', q_i, Z)
+
+                    out_i = qS / (qZ.unsqueeze(-1) + 1e-6) # (B, nH, d_v)
+                    outputs.append(out_i.unsqueeze(2)) # Append as (B, nH, 1, d_v)
+                
+                xo = torch.cat(outputs, dim=2) # (B, nH, T, d_v)
+                return self.fc_out(cat_heads(xo))
+            else:
+                # Vectorized implementation for causal linear attention
+                k_cumsum = torch.cumsum(k, dim=2)
+                kv_state = torch.einsum('bhtd,bhtf->bhtdf', k, v)
+                kv_cumsum = torch.cumsum(kv_state, dim=2)
+                
+                q_kv = torch.einsum('bhtd,bhtdf->bhtf', q, kv_cumsum)
+                q_k_sum = torch.einsum('bhtd,bhtd->bht', q, k_cumsum)
+                
+                # Add a small epsilon for numerical stability
+                return self.fc_out(cat_heads(q_kv / (q_k_sum.unsqueeze(-1) + 1e-6)))
         else:
-            # Global linear attention
+            # Global (non-causal) linear attention
             kv = torch.einsum('bhtd,bhtf->bhdf', k, v)
             z = 1 / (torch.einsum('bhtd,bhd->bht', q, k.sum(dim=2)) + 1e-6)
-            # (B, nH, T, Hs) @ (B, nH, Hs, Hs) * (B, nH, T, 1) -> (B, nH, T, Hs)
-            return self.fc_out(cat_heads(torch.einsum('bhtd,bhdf->bhtf', q, kv) * z.unsqueeze(-1)))
+            xo = torch.einsum('bhtd,bhdf->bhtf', q, kv) * z.unsqueeze(-1)
+            return self.fc_out(cat_heads(xo))

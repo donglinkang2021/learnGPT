@@ -29,7 +29,8 @@ def run_attention_benchmark():
     gqa_manual = GQA(d_model=d_model, n_heads=n_heads, kv_heads=kv_heads, use_flash_attention=False).to(device)
     mqa_manual = MQA(d_model=d_model, n_heads=n_heads, use_flash_attention=False).to(device)
     
-    linear_attn = LinearAttention(d_model=d_model, n_heads=n_heads).to(device)
+    linear_attn_vectorized = LinearAttention(d_model=d_model, n_heads=n_heads, use_loop_impl=False).to(device)
+    linear_attn_loop = LinearAttention(d_model=d_model, n_heads=n_heads, use_loop_impl=True).to(device)
     
     # --- Prepare Inputs ---
     inputs = {
@@ -45,13 +46,14 @@ def run_attention_benchmark():
         named_partial(gqa_manual.forward, f"GQA (kv={kv_heads}, Manual)"),
         named_partial(mqa_flash.forward, "MQA (kv=1, Flash)"),
         named_partial(mqa_manual.forward, "MQA (kv=1, Manual)"),
-        named_partial(linear_attn.forward, "LinearAttention (Causal)"),
+        named_partial(linear_attn_vectorized.forward, "Linear (Vectorized)"),
+        named_partial(linear_attn_loop.forward, "Linear (Loop)"),
     ]
     
     # --- Run Performance Test ---
     test_performance(
         inputs=inputs,
-        func_prefix="Attention",
+        func_prefix="Causal Attention",
         functions_to_test=functions_to_test,
         device=device,
         num_trials=num_trials
