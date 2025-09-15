@@ -1,5 +1,5 @@
 import torch
-from src.models.attention import MHA, GQA, MQA, LinearAttention
+from src.models.attention import MHA, GQA, MQA, LinearAttention, LucidLinearAttention
 from src.utils.func_utils import test_performance, named_partial
 
 def run_attention_benchmark():
@@ -31,6 +31,7 @@ def run_attention_benchmark():
     
     linear_attn_vectorized = LinearAttention(d_model=d_model, n_heads=n_heads, use_loop_impl=False).to(device)
     linear_attn_loop = LinearAttention(d_model=d_model, n_heads=n_heads, use_loop_impl=True).to(device)
+    lucid_linear_attn = LucidLinearAttention(d_model=d_model, n_heads=n_heads, bucket_size=64).to(device)
     
     # --- Prepare Inputs ---
     inputs = {
@@ -40,14 +41,15 @@ def run_attention_benchmark():
     # --- Functions to Test ---
     # The first function in the list is treated as the baseline for comparison.
     functions_to_test = [
-        named_partial(mha_flash.forward, "MHA (Flash)"),
         named_partial(mha_manual.forward, "MHA (Manual)"),
+        named_partial(mha_flash.forward, "MHA (Flash)"),
         named_partial(gqa_flash.forward, f"GQA (kv={kv_heads}, Flash)"),
         named_partial(gqa_manual.forward, f"GQA (kv={kv_heads}, Manual)"),
         named_partial(mqa_flash.forward, "MQA (kv=1, Flash)"),
         named_partial(mqa_manual.forward, "MQA (kv=1, Manual)"),
         named_partial(linear_attn_vectorized.forward, "Linear (Vectorized)"),
         named_partial(linear_attn_loop.forward, "Linear (Loop)"),
+        named_partial(lucid_linear_attn.forward, "Linear (Lucidrains)"),
     ]
     
     # --- Run Performance Test ---
