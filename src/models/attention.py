@@ -255,6 +255,7 @@ class SoftmaxLinearAttention(nn.Module):
         qkv = split_heads(qkv, self.head_dim)
         q, k, v = qkv.chunk(chunks=3, dim=1)
         q = q.softmax(dim=-1)
+        q = q * (self.head_dim ** -0.5)
         # Causal linear attention with softmax
         is_causal = mask is None or mask.bool().any()
         if is_causal:
