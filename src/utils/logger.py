@@ -23,7 +23,8 @@ class Logger:
             swanlab.init(
                 project=config.logger.project_name,
                 name=config.logger.run_name,
-                config=config_dict
+                config=config_dict,
+                reinit=True
             )
             self.writer = swanlab
         elif self.logger_type == "wandb":

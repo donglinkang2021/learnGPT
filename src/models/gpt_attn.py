@@ -1,15 +1,21 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.models.attention import MHA, GQA, MQA, LinearAttention
-
+from src.models.attention import (
+    MHA, GQA, MQA, 
+    LinearAttention, 
+    LucidLinearAttention, 
+    SoftmaxLinearAttention, 
+    CodeLinearAttention
+)
 __all__ = ['GPT_attn']
 
 ATTENTION_REGISTRY = {
-    "mha": MHA,
-    "gqa": GQA,
-    "mqa": MQA,
+    "mha": MHA, "gqa": GQA, "mqa": MQA,
     "linear": LinearAttention,
+    "lla": LucidLinearAttention,
+    "sla": SoftmaxLinearAttention,
+    "cla": CodeLinearAttention
 }
 
 class FeedFoward(nn.Module):

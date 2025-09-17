@@ -302,3 +302,40 @@ class SoftmaxLinearAttention(nn.Module):
             xo = torch.einsum('bhtd,bhde->bhte', q, context)
             
         return self.fc_out(cat_heads(xo))
+
+
+class CodeLinearAttention(nn.Module):
+    def __init__(self, d_model, n_heads, code_size=None, **kwargs):
+        super().__init__()
+        assert d_model % n_heads == 0, "d_model must be divisible by n_heads"
+        head_dim = d_model // n_heads
+        code_size = head_dim // 4 if code_size is None else code_size
+        self.n_heads = n_heads
+        self.head_dim = head_dim
+        self.fc_qkv = nn.Linear(d_model, 3 * d_model, bias=False)
+        self.fc_out = nn.Linear(d_model, d_model, bias=False)
+        self.register_buffer('fc_code', torch.randn(1, n_heads, code_size, head_dim, requires_grad=True))
+
+    def forward(self, x:torch.Tensor, mask:torch.Tensor=None):
+        qkv = self.fc_qkv(x)
+        qkv = split_heads(qkv, self.head_dim)
+        q, k, v = qkv.chunk(chunks=3, dim=1) # (B, nH, T, D)
+        q = q @ self.fc_code.transpose(-2, -1) * (self.head_dim ** -0.5) # (B, nH, T, C)
+        k = k @ self.fc_code.transpose(-2, -1) * (self.head_dim ** -0.5) # (B, nH, T, C)
+        q = q.softmax(dim=-1)
+        q = q * (self.head_dim ** -0.5)
+        # Causal linear attention with softmax
+        is_causal = mask is None or mask.bool().any()
+        if is_causal:
+            # k_exp = torch.exp(k - k.max(dim=2, keepdim=True).values) # (B, H, T, C)
+            k_exp = torch.exp(k) # (B, H, T, C)
+            k_exp_cumsum = k_exp.cumsum(dim=2) # (B, H, T, C)
+            k_exp_v_cumsum = torch.einsum('bhtc, bhtd -> bhtcd', k_exp, v).cumsum(dim=2) # (B, H, T, C, D)
+            kv = k_exp_v_cumsum / k_exp_cumsum.unsqueeze(-1) # (B, H, T, C, D)
+            xo = torch.einsum('bhtc, bhtcd -> bhtd', q, kv) # (B, H, T, D)
+        else:
+            k = k.softmax(dim=-2) # Softmax over sequence length
+            context = torch.einsum('bhtd,bhte->bhde', k, v)
+            xo = torch.einsum('bhtd,bhde->bhte', q, context)
+            
+        return self.fc_out(cat_heads(xo))

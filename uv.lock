@@ -32,30 +32,30 @@ sdist = { url = "https://mirrors.aliyun.com/pypi/packages/3e/38/7859ff46355f76f8
 
 [[package]]
 name = "boto3"
-version = "1.40.26"
+version = "1.40.32"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/66/68/40902312de023458edae9bb42c503f2aafda5009079cead1ab693f2350a6/boto3-1.40.26.tar.gz", hash = "sha256:9a71684825cfd4548027f254eadf4dafb7fccc7523f20e2a1cb74033f4d74a6b" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/c7/c7/39b10ce9e79fb40327c8e96074223cfca01b5b9165827c8a9b2e4c7a8935/boto3-1.40.32.tar.gz", hash = "sha256:6951aac75ce25611df55a31c844b118c288460648535ce9125fb15b490387ba4" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/e5/b7/7b6f803dc62f57ed7c8ac108b7aef36fb27ca0aaccd197e3f83bdf57a68a/boto3-1.40.26-py3-none-any.whl", hash = "sha256:8272deb4b82c4a0faa1231c2cd5c6d267d71ed6265abef545c1d5b7f0aa936d8" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/5f/40/2ce4219d4df77c50d3de58fa33a9f6eea1ff183f01d1d42ae333c9789eb9/boto3-1.40.32-py3-none-any.whl", hash = "sha256:9edf07327f444ddd142f45120c6979902712921b6e90fdb05963996b97bd7689" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.40.26"
+version = "1.40.32"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/b7/d7/e42337570f38405a99fa9f9d5f1379fd52de412b1d4c65351d688c461b5d/botocore-1.40.26.tar.gz", hash = "sha256:f8f46b3978b7c324f4c0bef03505870c4c5240c736bfb63318da091942a29710" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/b6/9f/679a62a91414907b7f27d1757238b95f821f769ca98b1418d4e32758d8b5/botocore-1.40.32.tar.gz", hash = "sha256:e027adff8d6e177b396dff68340dafa7548b84aeb2cff149d84844d56ad29bae" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/a4/8b/1dadb6b391346a811ee44b1f36159c376e536e7851c2c1348b44d718da76/botocore-1.40.26-py3-none-any.whl", hash = "sha256:c3e89787b1a360d0fd30f9066864415df02d54b07691cabc34a6b1a01c3d2549" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/53/00/7598993d4838262316c75810e6a8d2e0bdeaefed8159125c949e26a643b4/botocore-1.40.32-py3-none-any.whl", hash = "sha256:a7cc409648aaf08a7d1aab76c675818868a0b76745b9deb478f91c1d8898aa8a" },
 ]
 
 [[package]]
@@ -333,7 +333,7 @@ requires-dist = [
     { name = "hydra-colorlog", specifier = ">=1.2.0" },
     { name = "hydra-core", specifier = ">=1.3.2" },
     { name = "pandas", specifier = ">=2.3.2" },
-    { name = "swanlab", specifier = ">=0.6.8" },
+    { name = "swanlab", specifier = ">=0.6.10" },
     { name = "tensorboard", specifier = ">=2.20.0" },
     { name = "torch", specifier = ">=2.8.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
@@ -593,11 +593,11 @@ wheels = [
 
 [[package]]
 name = "nvidia-ml-py"
-version = "13.580.65"
+version = "13.580.82"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/8f/76/ff4a297c82b463ef17e7d0100d1bee5dbe6d1416721a9170e51ffcb8ecf3/nvidia_ml_py-13.580.65.tar.gz", hash = "sha256:7bf18b03c7d3658727011cf5f0c6c2155b36ce439e65359a0a4a906214f6a3c9" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/dd/6c/4a533f2c0185027c465adb6063086bc3728301e95f483665bfa9ebafb2d3/nvidia_ml_py-13.580.82.tar.gz", hash = "sha256:0c028805dc53a0e2a6985ea801888197765ac2ef8f1c9e29a7bf0d3616a5efc7" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/f9/96/88a5cb161c61cab2ee65b5aa61e612901fbcb1660024f0ccb26fcb02a17c/nvidia_ml_py-13.580.65-py3-none-any.whl", hash = "sha256:f0c65306ed999d2d4ff793918bfd17d1e30895d1c4606413ef95a0ea42460792" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/7f/96/d6d25a4c307d6645f4a9b91d620c0151c544ad38b5e371313a87d2761004/nvidia_ml_py-13.580.82-py3-none-any.whl", hash = "sha256:4361db337b0c551e2d101936dae2e9a60f957af26818e8c0c3a1f32b8db8d0a7" },
 ]
 
 [[package]]
@@ -965,14 +965,14 @@ wheels = [
 
 [[package]]
 name = "s3transfer"
-version = "0.13.1"
+version = "0.14.0"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 dependencies = [
     { name = "botocore" },
 ]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/6d/05/d52bf1e65044b4e5e27d4e63e8d1579dbdec54fce685908ae09bc3720030/s3transfer-0.13.1.tar.gz", hash = "sha256:c3fdba22ba1bd367922f27ec8032d6a1cf5f10c934fb5d68cf60fd5a23d936cf" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/62/74/8d69dcb7a9efe8baa2046891735e5dfe433ad558ae23d9e3c14c633d1d58/s3transfer-0.14.0.tar.gz", hash = "sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/6d/4f/d073e09df851cfa251ef7840007d04db3293a0482ce607d2b993926089be/s3transfer-0.13.1-py3-none-any.whl", hash = "sha256:a981aa7429be23fe6dfc13e80e4020057cbab622b08c0315288758d67cabc724" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/48/f0/ae7ca09223a81a1d890b2557186ea015f6e0502e9b8cb8e1813f1d8cfa4e/s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456" },
 ]
 
 [[package]]
@@ -1064,7 +1064,7 @@ wheels = [
 
 [[package]]
 name = "swanlab"
-version = "0.6.8"
+version = "0.6.10"
 source = { registry = "https://mirrors.aliyun.com/pypi/simple" }
 dependencies = [
     { name = "boto3" },
@@ -1084,9 +1084,9 @@ dependencies = [
     { name = "urllib3" },
     { name = "wrapt" },
 ]
-sdist = { url = "https://mirrors.aliyun.com/pypi/packages/71/be/3b811156d2e30e4edc96d28144626b3c323323ed24feb5d06e9d332173af/swanlab-0.6.8.tar.gz", hash = "sha256:6a6a918a4a277aae71bcc499e2f6beabfe680bd9a6631864819e0292b62d8834" }
+sdist = { url = "https://mirrors.aliyun.com/pypi/packages/47/c7/87c4084b43c65d0daa3c324e634b4c1fb2b10453515f35f914f87932841e/swanlab-0.6.10.tar.gz", hash = "sha256:0abb3a2bdd5915349fd161f43f3dcc9e79b399affc87b46451d86ee140cab9e2" }
 wheels = [
-    { url = "https://mirrors.aliyun.com/pypi/packages/92/5c/aee5fdcaa1b6de64f1f505d66e07d748cfd995948f9bda1edf506d50bf5e/swanlab-0.6.8-py3-none-any.whl", hash = "sha256:537cb68fd656e7bcb8ff727e3fbcb2bb07a8180ec5993a3199202a4b0dd69490" },
+    { url = "https://mirrors.aliyun.com/pypi/packages/3c/c3/e80a5c631d1e676807bed2c670bee27a6482840e72a3953f4e5cc26477c6/swanlab-0.6.10-py3-none-any.whl", hash = "sha256:e7f836c27c41819844755c942d9a3c8be63ae0a19996d6bab3934fb2c8cb77fb" },
 ]
 
 [[package]]

@@ -1,5 +1,11 @@
 import torch
-from src.models.attention import MHA, GQA, MQA, LinearAttention, LucidLinearAttention, SoftmaxLinearAttention
+from src.models.attention import (
+    MHA, GQA, MQA, 
+    LinearAttention, 
+    LucidLinearAttention, 
+    SoftmaxLinearAttention, 
+    CodeLinearAttention
+)
 from src.utils.func_utils import test_performance, named_partial
 
 def run_attention_benchmark():
@@ -30,6 +36,7 @@ def run_attention_benchmark():
     lucid_linear_attn = LucidLinearAttention(d_model=d_model, n_heads=n_heads, bucket_size=64).to(device)
     softmax_linear_attn_vec = SoftmaxLinearAttention(d_model=d_model, n_heads=n_heads, use_loop_impl=False).to(device)
     softmax_linear_attn_loop = SoftmaxLinearAttention(d_model=d_model, n_heads=n_heads, use_loop_impl=True).to(device)
+    code_linear_attn = CodeLinearAttention(d_model=d_model, n_heads=n_heads).to(device)
 
     # --- Prepare Inputs ---
     inputs = {
@@ -50,6 +57,7 @@ def run_attention_benchmark():
         named_partial(lucid_linear_attn.forward, "Linear (Lucidrains)"),
         named_partial(softmax_linear_attn_vec.forward, "SoftmaxLinear (Vectorized)"),
         named_partial(softmax_linear_attn_loop.forward, "SoftmaxLinear (Loop)"),
+        named_partial(code_linear_attn.forward, "CodeLinear"),
     ]
     
     # --- Run Performance Test ---
