@@ -294,7 +294,7 @@ class SoftmaxLinearAttention(nn.Module):
                 k_exp = torch.exp(k - k.max(dim=2, keepdim=True).values) # (B, H, T, C)
                 k_exp_cumsum = k_exp.cumsum(dim=2) # (B, H, T, C)
                 k_exp_v_cumsum = torch.einsum('bhtc, bhtd -> bhtcd', k_exp, v).cumsum(dim=2) # (B, H, T, C, D)
-                kv = k_exp_v_cumsum / k_exp_cumsum.unsqueeze(-1) # (B, H, T, C, D)
+                kv = k_exp_v_cumsum / (k_exp_cumsum.unsqueeze(-1) + 1e-9) # (B, H, T, C, D)
                 xo = torch.einsum('bhtc, bhtcd -> bhtd', q, kv) # (B, H, T, D)
         else:
             k = k.softmax(dim=-2) # Softmax over sequence length
@@ -327,11 +327,11 @@ class CodeLinearAttention(nn.Module):
         # Causal linear attention with softmax
         is_causal = mask is None or mask.bool().any()
         if is_causal:
-            # k_exp = torch.exp(k - k.max(dim=2, keepdim=True).values) # (B, H, T, C)
-            k_exp = torch.exp(k) # (B, H, T, C)
+            k_exp = torch.exp(k - k.max(dim=2, keepdim=True).values) # (B, H, T, C)
+            # k_exp = torch.exp(k) # (B, H, T, C)
             k_exp_cumsum = k_exp.cumsum(dim=2) # (B, H, T, C)
             k_exp_v_cumsum = torch.einsum('bhtc, bhtd -> bhtcd', k_exp, v).cumsum(dim=2) # (B, H, T, C, D)
-            kv = k_exp_v_cumsum / k_exp_cumsum.unsqueeze(-1) # (B, H, T, C, D)
+            kv = k_exp_v_cumsum / (k_exp_cumsum.unsqueeze(-1) + 1e-9) # (B, H, T, C, D)
             xo = torch.einsum('bhtc, bhtcd -> bhtd', q, kv) # (B, H, T, D)
         else:
             k = k.softmax(dim=-2) # Softmax over sequence length
