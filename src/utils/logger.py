@@ -32,6 +32,7 @@ class Logger:
                 project=config.logger.project_name,
                 name=config.logger.run_name,
                 config=config_dict,
+                reinit=True
             )
             self.writer = wandb
         elif self.logger_type == "tensorboard":
