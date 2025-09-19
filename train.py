@@ -42,13 +42,13 @@ def estimate_loss(cfg: DictConfig, model, train_data, val_data):
 # Use hydra decorator for the main function
 @hydra.main(config_path="config", config_name="config", version_base=None)
 def main(cfg: DictConfig) -> None:
-    print("Configuration:\n", OmegaConf.to_yaml(cfg, resolve=True)) # Print the resolved config
-    torch.manual_seed(cfg.training.torch_seed)
-
     # --- Logger Initialization ---
     logger = Logger(cfg)
     output_dir = HydraConfig.get().runtime.output_dir
     print(f"Output directory: {output_dir}")
+    torch.cuda.empty_cache()
+    print("Configuration:\n", OmegaConf.to_yaml(cfg, resolve=True)) # Print the resolved config
+    torch.manual_seed(cfg.training.torch_seed)
 
     # --- Data Loading ---
     # Use cfg.data.path
