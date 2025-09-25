@@ -13,7 +13,7 @@ def precompute_freqs_cis(head_dim: int, max_len: int, theta: float = 10000.0) ->
     return cos_sin
     
 def apply_rotary_emb(x:torch.Tensor, cos_sin:torch.Tensor):
-    x1, x2 = torch.chunk(x, 2, dim=-1)
+    x1, x2 = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)
     cos, sin = torch.chunk(cos_sin, 2, dim=-1)
     x_out = torch.stack([x1 * cos - x2 * sin, 
                          x1 * sin + x2 * cos], dim=-1)
